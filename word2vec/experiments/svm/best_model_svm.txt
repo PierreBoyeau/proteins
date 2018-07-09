@@ -1,0 +1,7 @@
+Best params: {'C': 0.011071731788899112, 'dual': False, 'loss': 'squared_hinge', 'penalty': 'l1'}
+             precision    recall  f1-score   support
+
+      False       0.95      0.81      0.87      3166
+       True       0.42      0.78      0.55       575
+
+avg / total       0.87      0.80      0.82      3741
