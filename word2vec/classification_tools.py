@@ -1,4 +1,6 @@
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.metrics import roc_curve, roc_auc_score
+import matplotlib.pyplot as plt
 import numpy as np
 import gensim
 
@@ -27,7 +29,7 @@ class ProteinTokenizer(BaseEstimator, TransformerMixin):
 
 class ProteinW2VRepresentation(BaseEstimator, TransformerMixin):
     """
-
+    Takes as input tokens (ie pseudo words) e.g. [['AAA', 'TTT', 'CGT'], ...] and returns sentence vector representations
     """
     def __init__(self, model_path, agg_mode='sum'):
         self.model_path = model_path
@@ -48,3 +50,17 @@ class ProteinW2VRepresentation(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         return self
+
+
+def roc_score(y_test, y_score, **ax_kws):
+    fpr, tpr, thresholds = roc_curve(y_test, y_score)
+    roc_auc_value = roc_auc_score(y_test, y_score)
+    fig, ax = plt.subplots(**ax_kws)
+
+    plt.plot([0, 1], [0, 1], color='navy', linestyle='--')
+    plt.plot(fpr, tpr, color='darkorange', label='ROC curve (area = %0.2f)' % roc_auc_value)
+
+    fig.suptitle('ROC Curve')
+    ax.set_xlabel('False Positive Rate', fontsize=10)
+    ax.set_ylabel('True Positive Rate', fontsize='medium')
+    return fig, ax
