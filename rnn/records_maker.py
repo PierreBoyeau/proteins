@@ -1,6 +1,4 @@
-import sys
-sys.path.append('/home/pierre/riken/io')
-sys.path.append('/home/pierre/riken/prot_features')
+from protein_io import reader
 import tensorflow as tf
 import pandas as pd
 from tqdm import tqdm
@@ -8,7 +6,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from keras.preprocessing.sequence import pad_sequences
 
-import prot_features
+from prot_features import prot_features
 
 
 MAX_LEN = 500
