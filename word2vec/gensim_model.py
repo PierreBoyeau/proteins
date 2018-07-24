@@ -1,9 +1,5 @@
-import sys
-import os
-dir_path = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(os.path.join(dir_path, '../io'))
+from protein_io import reader
 
-import reader
 import amino_acid_processing
 import gensim.models
 from tqdm import tqdm

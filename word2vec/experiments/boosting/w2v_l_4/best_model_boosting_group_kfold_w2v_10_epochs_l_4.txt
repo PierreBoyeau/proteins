@@ -1,0 +1,9 @@
+
+Best params: {'l2_leaf_reg': 1.0, 'class_weights': [1.0, 5.0], 'random_strength': 10, 'depth': 5, 'iterations': 1000, 'bagging_temperature': 1.0}
+ROC_AUC_SCORE : 0.8291949070361111
+             precision    recall  f1-score   support
+
+      False       0.83      0.83      0.83       902
+       True       0.64      0.63      0.63       423
+
+avg / total       0.77      0.77      0.77      1325

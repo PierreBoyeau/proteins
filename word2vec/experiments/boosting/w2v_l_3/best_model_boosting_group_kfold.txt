@@ -1,0 +1,9 @@
+
+Best params: {'bagging_temperature': 0.5, 'class_weights': [1.0, 5.0], 'depth': 5, 'iterations': 1000, 'l2_leaf_reg': 1.0, 'random_strength': 1}
+ROC_AUC_SCORE : 0.8055988006688578
+             precision    recall  f1-score   support
+
+      False       0.83      0.80      0.82       902
+       True       0.61      0.66      0.63       423
+
+avg / total       0.76      0.75      0.76      1325

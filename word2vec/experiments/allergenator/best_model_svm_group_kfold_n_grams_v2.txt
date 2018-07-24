@@ -1,0 +1,13 @@
+This one is done without group kfold (misleading title)
+Kfold is normal
+We deduce that this is not a good thing to do. (less roc and worse performance)
+
+
+Best params: {'SVM__dual': False, 'TFIDF__ngram_range': (1, 2), 'SVM__C': 15.0, 'SVM__penalty': 'l1', 'SVM__class_weight': 'balanced', 'TFIDF__tokenizer': <function tokenizer4 at 0x7f2acedd9598>, 'TFIDF__use_idf': True, 'SVM__loss': 'squared_hinge'}
+ROC_AUC_SCORE : 0.7618177100533094
+             precision    recall  f1-score   support
+
+      False       0.80      0.92      0.86       902
+       True       0.75      0.50      0.60       423
+
+avg / total       0.78      0.79      0.77      1325

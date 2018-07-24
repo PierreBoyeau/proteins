@@ -1,0 +1,9 @@
+
+Best params: {'TFIDF__ngram_range': (1, 4), 'RBF_SVM__C': 10.0, 'TFIDF__tokenizer': <function tokenizer4 at 0x7f2afcc1b598>, 'RBF_SVM__gamma': 1, 'TFIDF__use_idf': True}
+ROC_AUC_SCORE : 0.8102325800820871
+             precision    recall  f1-score   support
+
+      False       0.77      0.98      0.86       902
+       True       0.88      0.38      0.53       423
+
+avg / total       0.81      0.79      0.76      1325

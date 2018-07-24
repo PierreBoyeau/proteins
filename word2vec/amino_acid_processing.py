@@ -1,9 +1,5 @@
-import pandas as pd
-from Bio import SeqIO
-from tqdm import tqdm
 import numpy as np
-import random
-import collections
+from tqdm import tqdm
 
 data_index = 0
 

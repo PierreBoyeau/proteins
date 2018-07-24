@@ -1,7 +1,0 @@
-Best params: {'depth': 9, 'l2_leaf_reg': 10.0}
-             precision    recall  f1-score   support
-
-      False       0.94      0.98      0.96      3166
-       True       0.85      0.66      0.74       575
-
-avg / total       0.93      0.93      0.93      3741

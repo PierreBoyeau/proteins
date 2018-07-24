@@ -1,22 +1,12 @@
-import catboost
-import sys
-import glob
-sys.path.append('/home/pierre/riken/word2vec')
-sys.path.append('/home/pierre/riken/io')
-
 import numpy as np
 import pandas as pd
-import seaborn as sns
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from sklearn.pipeline import Pipeline
 from sklearn.svm import LinearSVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
-import classification_tools
-import reader
-
-import matplotlib.pyplot as plt
+from word2vec import classification_tools
 
 
 ###############

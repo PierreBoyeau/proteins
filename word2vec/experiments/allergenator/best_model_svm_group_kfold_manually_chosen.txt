@@ -1,0 +1,9 @@
+
+Best params: {'SVM__C': 5.0, 'SVM__class_weight': 'balanced', 'SVM__dual': False, 'SVM__loss': 'squared_hinge', 'SVM__penalty': 'l1', 'TFIDF__tokenizer': <function tokenizer3 at 0x7fee414561e0>, 'TFIDF__use_idf': True}
+ROC_AUC_SCORE : 0.70953829944489
+             precision    recall  f1-score   support
+
+      False       0.79      0.94      0.86       902
+       True       0.78      0.48      0.60       423
+
+avg / total       0.79      0.79      0.78      1325

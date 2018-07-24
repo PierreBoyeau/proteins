@@ -1,27 +1,21 @@
-
 # IMPORTS AND PARAMETERS
-import sys
-sys.path.append('/home/pierre/riken/word2vec')
 
-import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV, StratifiedKFold, GroupKFold, GroupShuffleSplit
 from sklearn.pipeline import Pipeline
-from sklearn.svm import LinearSVC
+from sklearn.svm import LinearSVC, SVC
 from sklearn.metrics import roc_auc_score, classification_report
 
 from sklearn.feature_extraction.text import TfidfVectorizer
-import classification_tools
 
 
 K = 5
 RANDOM_STATE = 42
-BEST_MODEL_PROPERTIES_PATH = './best_model_svm_group_kfold_n_grams.txt'
-CV_OUTPUT_PATH = './parameters_group_kfold_n_grams.csv'
+BEST_MODEL_PROPERTIES_PATH = './best_model_rbf_svm_group_kfold_n_grams.txt'
+CV_OUTPUT_PATH = './rbf_parameters_group_kfold_n_grams.csv'
 data_path = '/home/pierre/riken/data/riken_data/complete_from_xlsx.tsv'
-# KFOLD = GroupKFold(n_splits=5)
-KFOLD = StratifiedKFold(n_splits=10, random_state=RANDOM_STATE)
+KFOLD = GroupKFold(n_splits=5)
+# KFOLD = StratifiedKFold(n_splits=10, random_state=RANDOM_STATE)
 
 
 def overlapping_tokenizer(seq, k=K):
@@ -58,7 +52,8 @@ if __name__ == '__main__':
     # PIPELINE DESCRIPTION
     pipe = Pipeline([
         ('TFIDF', TfidfVectorizer(max_features=32000, lowercase=False)),
-        ('SVM', LinearSVC(tol=1e-6, max_iter=50000)),
+        # ('SVM', LinearSVC(tol=1e-6, max_iter=50000)),
+        ('RBF_SVM', SVC(tol=1e-6, max_iter=-1, cache_size=5000, random_state=RANDOM_STATE, kernel='rbf'))
     ])
 
     grid = {
@@ -72,13 +67,15 @@ if __name__ == '__main__':
                            # False,
                            True
                            ],
-        'TFIDF__ngram_range': [(1,1), (1,2), (1,3), (1,4)],
-        'SVM__loss': ['squared_hinge'],
-        'SVM__dual': [False],
-        'SVM__penalty': ['l1'],
-        'SVM__class_weight': ['balanced'],  # [None, 'balanced'],
-        'SVM__C': [1e-1, 1e0, 5.0, 10.0, 15.0],
+        'TFIDF__ngram_range': [(1, 4)],  #[(1,1), (1,2), (1,3), (1,4)],
+        # 'SVM__loss': ['squared_hinge'],
+        # 'SVM__dual': [False],
+        # 'SVM__penalty': ['l1'],
+        # 'SVM__class_weight': ['balanced'],  # [None, 'balanced'],
+        # 'SVM__C': [1e-1, 1e0, 5.0, 10.0, 15.0],
 
+        'RBF_SVM__C': [1e-1, 1.0, 10., 100.],
+        'RBF_SVM__gamma': ['auto', 1e-2, 1e-1, 1]
     }
 
     # Xtrain, Xtest, ytrain, ytest = train_test_split(sequences, y, test_size=0.3, random_state=RANDOM_STATE)
