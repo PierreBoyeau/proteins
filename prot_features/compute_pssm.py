@@ -19,7 +19,6 @@ COMMAND = "psiblast -db {db} \
 -out {query_output}"
 
 
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_path', help='path to saved data')

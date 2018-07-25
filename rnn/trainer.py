@@ -63,17 +63,14 @@ def eval_input_fn():
     return tokens_eval, labels_eval
 
 
-
-
-
 def manual_train():
     # optimizer = tf.train.GradientDescentOptimizer(learning_rate=FLAGS.lr)
     optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
+
     tokens, labels = train_input_fn()
     # tokens_eval, labels_eval = eval_input_fn()
     with tf.variable_scope('model'):
-        model_train = rnn_model.RnnModel(input=tokens, labels=labels,
-                                         lstm_size_list=FLAGS.lstm_size_list, n_classes=FLAGS.n_classes,
+        model_train = rnn_model.RnnModel(lstm_size_list=FLAGS.lstm_size_list, n_classes=FLAGS.n_classes,
                                          vocab_size=25, learning_rate=FLAGS.lr,
                                          max_size=FLAGS.max_len, embed_dim=10, dropout_keep_p=FLAGS.dropout_keep_p,
                                          optimizer=optimizer)
@@ -85,8 +82,8 @@ def manual_train():
     #                                     max_size=FLAGS.max_len, embed_dim=10, dropout_keep_p=1.0)
     opt = model_train.optimize
 
-    tf.summary.scalar('loss', model_train.loss)
-    tf.summary.scalar('accuracy', model_train.acc)
+    loss_summ = tf.summary.scalar('loss', model_train.loss)
+    acc_summ = tf.summary.scalar('accuracy', model_train.acc)
 
     tf.summary.histogram('predictions', tf.argmax(model_train.logits, 1))
     # train_summary_op = tf.summary.merge_all()
