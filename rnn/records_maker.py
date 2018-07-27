@@ -51,7 +51,7 @@ def _int64_feature(value):
 
 
 def _float_feature(value):
-    return tf.train.Feature(int64_list=tf.train.FloatList(value=value))
+    return tf.train.Feature(float_list=tf.train.FloatList(value=value))
 
 
 def _byte_feature(value):
@@ -89,7 +89,9 @@ def write_record(my_df, record_path, pssm_format_file='../data/psiblast/swiss/{}
         pssm_mat = pssm_mat.reshape(-1)
 
         if seq_len != len(sen):
-            print('Inconsistency for protein id : {} = {}'.format(id, sen))
+            print('Inconsistency for protein id : {}'.format(id))
+            print(sen)
+            print(pssm.index.values)
 
         tokens = [char for char in sen]
         tokens = np.array([safe_char_to_idx(char) for char in tokens])
