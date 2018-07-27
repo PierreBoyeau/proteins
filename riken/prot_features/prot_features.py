@@ -1,7 +1,8 @@
+import os
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 from Bio.SubsMat import MatrixInfo
-
 import numpy as np
+import pandas as pd
 
 HYDROPATHS = {
     'A':  1.800,
@@ -25,6 +26,17 @@ HYDROPATHS = {
     'Y': -1.300,
     'V':  4.200,
 }
+
+
+def get_amino_acids_chemical_properties():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    path_to_csv = os.path.join(dir_path, '../../data/amino_acid_properties.tsv')
+
+    properties_df = pd.read_csv(path_to_csv, sep='\t').drop(labels="amino acid", axis=1).set_index(keys='character')
+    feature_means = properties_df.mean(axis=0)
+    properties_df = properties_df.fillna(feature_means)
+    properties_df = (properties_df - feature_means) / properties_df.std(axis=0)
+    return properties_df
 
 
 def get_blosum80_dict_to_features():

@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from keras.preprocessing.sequence import pad_sequences
 
-from riken import prot_features
+from riken.prot_features import prot_features
 
 flags = tf.flags
 
@@ -32,6 +32,11 @@ def safe_char_to_idx(char):
         return
 
 
+def create_overall_static_aa_mat():
+    res_mat = np.concatenate([create_blosom_80_mat(), create_amino_acids_prop_mat()], axis=1)
+    return res_mat
+
+
 def create_blosom_80_mat():
     len_mat = len(blosom_80['A'])
     zeros = np.zeros(len_mat)
@@ -42,6 +47,12 @@ def create_blosom_80_mat():
         else:
             mat.append(zeros)
     return np.array(mat)
+
+
+def create_amino_acids_prop_mat():
+    prop_df = prot_features.get_amino_acids_chemical_properties()
+    prop_df = prop_df.reindex(['NULL']+chars).fillna(0)
+    return prop_df.values
 
 
 def _int64_feature(value):

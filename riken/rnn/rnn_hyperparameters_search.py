@@ -71,7 +71,10 @@ chars = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N',
 chars_to_idx = {char: idx+1 for (idx, char) in enumerate(chars)}
 n_chars = len(chars)
 
-BLOSOM_M = records_maker.create_blosom_80_mat()
+# STATIC_AA_TO_FEAT_M = records_maker.create_blosom_80_mat()
+STATIC_AA_TO_FEAT_M = records_maker.create_overall_static_aa_mat()
+# TODO: Ensure that new features (chemical properties of AA bring something to the model) via CV?
+
 ONEHOT_M = np.zeros((n_chars + 1, n_chars + 1))
 ONEHOT_M[1:, 1:] = np.eye(n_chars, n_chars)
 
@@ -81,11 +84,12 @@ def rnn_model(n_classes, n_features_wo_token=None, attention=False):
     embed = Embedding(len(ONEHOT_M), output_dim=n_chars + 1, weights=[ONEHOT_M],
                       trainable=False, dtype='float32')(aa_ind)
 
-    blosom_embed = Embedding(BLOSOM_M.shape[0], output_dim=BLOSOM_M.shape[1], weights=[BLOSOM_M],
-                             trainable=False, dtype='float32')(aa_ind)
+    static_feat_from_aa = Embedding(STATIC_AA_TO_FEAT_M.shape[0], output_dim=STATIC_AA_TO_FEAT_M.shape[1],
+                                    weights=[STATIC_AA_TO_FEAT_M],
+                                    trainable=False, dtype='float32')(aa_ind)
 
     # features = Input(shape=(MAXLEN, n_features_wo_token), dtype='float32')
-    h = Concatenate()([embed, blosom_embed])
+    h = Concatenate()([embed, static_feat_from_aa])
     h = Conv1D(100, kernel_size=3, activation='relu', padding='same')(h)
 
     if attention:
@@ -127,7 +131,7 @@ def get_embeddings(inp):
     embed = Embedding(len(ONEHOT_M), output_dim=n_chars + 1, weights=[ONEHOT_M],
                       trainable=False, dtype='float32')(inp)
 
-    blosum_embed = Embedding(BLOSOM_M.shape[0], output_dim=BLOSOM_M.shape[1], weights=[BLOSOM_M],
+    blosum_embed = Embedding(STATIC_AA_TO_FEAT_M.shape[0], output_dim=STATIC_AA_TO_FEAT_M.shape[1], weights=[STATIC_AA_TO_FEAT_M],
                              trainable=False, dtype='float32')(inp)
     h = Concatenate()([embed, blosum_embed])
     return h
