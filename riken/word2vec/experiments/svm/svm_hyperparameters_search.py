@@ -6,8 +6,7 @@ from sklearn.svm import LinearSVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
-from word2vec import classification_tools
-
+from riken.word2vec import classification_tools
 
 ###############
 

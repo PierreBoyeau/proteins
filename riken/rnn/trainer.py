@@ -2,7 +2,6 @@ import os
 import tensorflow as tf
 
 import rnn_model
-import convo_model
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -127,63 +126,6 @@ def manual_train():
                 break
 
 
-def convo_train():
-    optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
-    tokens, labels = train_input_fn()
-    with tf.variable_scope('model'):
-        model_train = convo_model.ConvModel(input=tokens, labels=labels,
-                                            n_classes=FLAGS.n_classes,
-                                            vocab_size=25, learning_rate=FLAGS.lr,
-                                            max_size=FLAGS.max_len, dropout_keep_p=FLAGS.dropout_keep_p,
-                                            optimizer=optimizer)
-
-    opt = model_train.optimize
-
-    tf.summary.scalar('loss', model_train.loss)
-    tf.summary.scalar('accuracy', model_train.acc)
-    tf.summary.histogram('predictions', tf.argmax(model_train.logits, 1))
-    merger = tf.summary.merge_all()
-
-    logtensors = {
-        "step": tf.train.get_or_create_global_step(),
-        "train_loss": model_train.loss,
-        "train_acc": model_train.acc
-    }
-
-    hks = [
-        tf.train.SummarySaverHook(
-            save_steps=500,
-            summary_op=merger,
-            output_dir=os.path.join(FLAGS.log_dir, 'summaries')
-        ),
-        tf.train.CheckpointSaverHook(
-            FLAGS.log_dir,
-            save_secs=60 * 10
-        ),
-        tf.train.LoggingTensorHook(
-            logtensors,
-            every_n_iter=1,
-        )
-    ]
-    step = tf.train.get_or_create_global_step(graph=None)
-    increment_op = tf.assign(step, step+1)
-    num_batch = 0
-
-    grad_study = tf.reduce_max(model_train.gradient_loss)
-    print(tokens.get_shape())
-    with tf.train.MonitoredTrainingSession(hooks=hks, checkpoint_dir=FLAGS.log_dir) as sess:
-        while True:
-            try:
-                _ = sess.run([opt, increment_op])
-                num_batch += 1
-                if num_batch % 100 == 0:
-                    print('TOKENS : ', tokens.eval(session=sess))
-                    print('LABELS: ', labels.eval(session=sess))
-                    print('GRAD PROPERTIES : ', grad_study.eval(session=sess))
-            except tf.errors.OutOfRangeError:
-                break
-
-
 if __name__ == '__main__':
     manual_train()
     # convo_train()
@@ -202,4 +144,3 @@ if __name__ == '__main__':
 #
 #     assert mode == tf.estimator.ModeKeys.TRAIN
 #     return tf.estimator.EstimatorSpec(mode, loss=mdl.loss, train_op=mdl.optimize)
-import Bio

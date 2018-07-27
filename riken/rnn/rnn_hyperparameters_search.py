@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import GroupShuffleSplit, ShuffleSplit
 
 from tensorflow import flags
 from keras.preprocessing.sequence import pad_sequences
@@ -9,20 +8,19 @@ from keras.models import load_model
 from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from keras.layers import Embedding
-from keras.layers import LSTM, CuDNNLSTM
+from keras.layers import CuDNNLSTM
 from keras.layers import Conv1D
 from keras.layers import Input
 from keras.layers import Concatenate
 from keras.layers import Bidirectional
 from keras.layers import Permute, Reshape, Multiply
 from keras.models import Model
-from keras.optimizers import Adam, SGD
+from keras.optimizers import Adam
 from keras.callbacks import TensorBoard, ModelCheckpoint
 
 # from . import records_maker
 import records_maker
-from protein_io import data_op
-
+from riken.protein_io import data_op
 
 # import tensorflow as tf
 # from keras.backend.tensorflow_backend import set_session
@@ -35,7 +33,7 @@ from protein_io import data_op
 python rnn_hyperparameters_search.py \
 -max_len 500 \
 -lr 0.001 \
--data_path /home/pierre/riken/data/pfam/ \
+-data_path /home/pierre/riken/data/pfam/pfam_data.tsv \
 -key_to_predict clan \
 -log_dir logs_rnn_v2_pfam
 

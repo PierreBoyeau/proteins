@@ -1,5 +1,3 @@
-import sys
-sys.path.append('/home/pierre/riken/protein_io')
 import os
 import argparse
 import pandas as pd
@@ -9,7 +7,7 @@ import shlex
 import dask.dataframe as dd
 from dask.multiprocessing import get
 
-from reader import get_seqrecord
+from riken.protein_io.reader import get_seqrecord
 
 COMMAND = "psiblast -db {db} \
 -evalue 0.001 \

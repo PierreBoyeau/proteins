@@ -1,4 +1,3 @@
-from protein_io import reader
 import tensorflow as tf
 import pandas as pd
 from tqdm import tqdm
@@ -6,8 +5,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from keras.preprocessing.sequence import pad_sequences
 
-from prot_features import prot_features
-
+from riken import prot_features
 
 flags = tf.flags
 

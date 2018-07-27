@@ -1,13 +1,13 @@
 # IMPORTS AND PARAMETERS
 
 import pandas as pd
-from sklearn.model_selection import GridSearchCV, StratifiedKFold, GroupKFold, GroupShuffleSplit
+from sklearn.model_selection import GridSearchCV, GroupKFold
 from sklearn.pipeline import Pipeline
-from sklearn.svm import LinearSVC, SVC
+from sklearn.svm import SVC
 from sklearn.metrics import roc_auc_score, classification_report
 
 from sklearn.feature_extraction.text import TfidfVectorizer
-
+from riken.protein_io import data_op
 
 K = 5
 RANDOM_STATE = 42
@@ -78,8 +78,7 @@ if __name__ == '__main__':
         'RBF_SVM__gamma': ['auto', 1e-2, 1e-1, 1]
     }
 
-    # Xtrain, Xtest, ytrain, ytest = train_test_split(sequences, y, test_size=0.3, random_state=RANDOM_STATE)
-    train_inds, test_inds = next(GroupShuffleSplit(random_state=RANDOM_STATE).split(sequences, y, groups))
+    train_inds, test_inds = data_op.group_shuffle_indices(sequences, y, groups)
     Xtrain, Xtest, ytrain, ytest = sequences[train_inds], sequences[test_inds], y[train_inds], y[test_inds]
 
     cv_splits = KFOLD.split(Xtrain, ytrain, groups[train_inds])

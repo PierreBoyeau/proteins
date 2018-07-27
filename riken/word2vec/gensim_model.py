@@ -1,4 +1,4 @@
-from protein_io import reader
+from riken.protein_io import reader
 
 import amino_acid_processing
 import gensim.models

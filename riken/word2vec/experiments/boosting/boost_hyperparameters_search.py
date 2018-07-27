@@ -1,11 +1,12 @@
 import catboost
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import GridSearchCV, StratifiedKFold, GroupKFold, GroupShuffleSplit
+from sklearn.model_selection import GridSearchCV, GroupKFold
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import classification_report, roc_auc_score
 
-from word2vec import classification_tools
+from riken.word2vec import classification_tools
+from riken.protein_io import data_op
 
 ###############
 
@@ -33,8 +34,7 @@ feature_tool = Pipeline([
                                                                            agg_mode=agg_mode)),
 ])
 X_w2v = feature_tool.transform(X)
-# Xtrain, Xtest, ytrain, ytest = train_test_split(X_w2v, y, test_size=0.3, random_state=RANDOM_STATE)
-train_inds, test_inds = next(GroupShuffleSplit(random_state=RANDOM_STATE).split(X_w2v, y, groups))
+train_inds, test_inds = data_op.group_shuffle_indices(X_w2v, y, groups)
 Xtrain, Xtest, ytrain, ytest = X_w2v[train_inds], X_w2v[test_inds], y[train_inds], y[test_inds]
 
 

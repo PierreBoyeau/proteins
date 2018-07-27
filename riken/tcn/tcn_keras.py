@@ -6,8 +6,8 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.callbacks import TensorBoard, ModelCheckpoint
 from tensorflow import flags
 import os
-from protein_io import data_op
-from rnn.rnn_hyperparameters_search import get_embeddings, safe_char_to_idx
+import data_op
+from riken.rnn.rnn_hyperparameters_search import get_embeddings, safe_char_to_idx
 
 
 def residual_block(input, dilatation, kernel_size, n_filters, dropout_rate):
