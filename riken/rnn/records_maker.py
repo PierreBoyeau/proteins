@@ -9,11 +9,6 @@ from riken.prot_features import prot_features
 
 flags = tf.flags
 
-flags.DEFINE_string('train_path', './swiss_train_data500.tfrecords', 'Path of training records')
-flags.DEFINE_string('val_path', './swiss_val_data500.tfrecords', 'Path of val records')
-FLAGS = flags.FLAGS
-
-
 MAX_LEN = 500
 RANDOM_STATE = 42
 VALUE = -1
@@ -32,8 +27,10 @@ def safe_char_to_idx(char):
         return
 
 
-def create_overall_static_aa_mat():
+def create_overall_static_aa_mat(normalize=True):
     res_mat = np.concatenate([create_blosom_80_mat(), create_amino_acids_prop_mat()], axis=1)
+    if normalize:
+        res_mat = (res_mat - res_mat.mean(axis=0))  / res_mat.std(axis=0)
     return res_mat
 
 
@@ -121,6 +118,10 @@ def write_record(my_df, record_path, pssm_format_file='../data/psiblast/swiss/{}
 
 
 if __name__ == '__main__':
+    flags.DEFINE_string('train_path', './swiss_train_data500.tfrecords', 'Path of training records')
+    flags.DEFINE_string('val_path', './swiss_val_data500.tfrecords', 'Path of val records')
+    FLAGS = flags.FLAGS
+
     train_records_filename = FLAGS.train_path
     val_records_filename = FLAGS.val_path
 

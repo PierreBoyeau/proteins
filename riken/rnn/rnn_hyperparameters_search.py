@@ -18,16 +18,11 @@ from keras.models import Model
 from keras.optimizers import Adam
 from keras.callbacks import TensorBoard, ModelCheckpoint
 
-# from . import records_maker
-import records_maker
+from riken.rnn import records_maker
 from riken.protein_io import data_op
 
-# import tensorflow as tf
-# from keras.backend.tensorflow_backend import set_session
-# config = tf.ConfigProto()
-# config.gpu_options.per_process_gpu_memory_fraction = 0.3
-# set_session(tf.Session(config=config))
-
+import tensorflow as tf
+from keras.backend.tensorflow_backend import set_session
 
 """
 python rnn_hyperparameters_search.py \
@@ -72,7 +67,7 @@ chars_to_idx = {char: idx+1 for (idx, char) in enumerate(chars)}
 n_chars = len(chars)
 
 # STATIC_AA_TO_FEAT_M = records_maker.create_blosom_80_mat()
-STATIC_AA_TO_FEAT_M = records_maker.create_overall_static_aa_mat()
+STATIC_AA_TO_FEAT_M = records_maker.create_overall_static_aa_mat(normalize=True)
 # TODO: Ensure that new features (chemical properties of AA bring something to the model) via CV?
 
 ONEHOT_M = np.zeros((n_chars + 1, n_chars + 1))
@@ -131,9 +126,10 @@ def get_embeddings(inp):
     embed = Embedding(len(ONEHOT_M), output_dim=n_chars + 1, weights=[ONEHOT_M],
                       trainable=False, dtype='float32')(inp)
 
-    blosum_embed = Embedding(STATIC_AA_TO_FEAT_M.shape[0], output_dim=STATIC_AA_TO_FEAT_M.shape[1], weights=[STATIC_AA_TO_FEAT_M],
+    static_embed = Embedding(STATIC_AA_TO_FEAT_M.shape[0], output_dim=STATIC_AA_TO_FEAT_M.shape[1],
+                             weights=[STATIC_AA_TO_FEAT_M],
                              trainable=False, dtype='float32')(inp)
-    h = Concatenate()([embed, blosum_embed])
+    h = Concatenate()([embed, static_embed])
     return h
 
 
@@ -142,7 +138,6 @@ def rnn_model_v2(n_classes):
     h = get_embeddings(aa_ind)
 
     h = Conv1D(100, kernel_size=3, activation='relu', padding='same')(h)
-
     # conv_layers = []
     # for kernel_size in [1, 3, 5]:
     #     conv = Conv1D(20, kernel_size=kernel_size, activation='relu', padding='same')(h)
@@ -151,8 +146,7 @@ def rnn_model_v2(n_classes):
     # conv_layers.append(Conv1D(20, kernel_size=9, activation='relu', padding='same')(h))
     # h = Concatenate()(conv_layers)
 
-    h = Dropout(rate=0.3)(h)
-
+    h = Dropout(rate=0.5)(h)
     h = Bidirectional(CuDNNLSTM(100, return_sequences=False))(h)
     h = Dense(n_classes, activation='softmax')(h)
     mdl = Model(inputs=aa_ind, outputs=h)
@@ -195,6 +189,8 @@ def safe_char_to_idx(char):
 if __name__ == '__main__':
     flags.DEFINE_integer('max_len', default=500, help='max sequence lenght')
     flags.DEFINE_float('lr', default=1e-3, help='learning rate')
+    flags.DEFINE_float('memory_fraction', default=0.4, help='memory fraction')
+
     flags.DEFINE_string('data_path', default='/home/pierre/riken/data/swiss/swiss_with_clans.tsv',
                         help='path to tsv data')
     flags.DEFINE_string('key_to_predict', default='clan', help='key to predict (y)')
@@ -217,8 +213,12 @@ if __name__ == '__main__':
     GROUPS = FLAGS.groups if FLAGS.groups!='NO' else None
     SPLITTER = data_op.shuffle_indices if GROUPS is None else data_op.group_shuffle_indices
 
+    config = tf.ConfigProto()
+    config.gpu_options.per_process_gpu_memory_fraction = FLAGS.memory_fraction
+    set_session(tf.Session(config=config))
+
     df = pd.read_csv(DATA_PATH, sep='\t').dropna()
-    df = df.loc[df.seq_len >= 50, :]
+    # df = df.loc[df.seq_len >= 50, :]
 
     try:
         df.loc[:, 'sequences'] = df.sequences_x
@@ -240,8 +240,8 @@ if __name__ == '__main__':
     # features_train, features_test = features[train_inds], features[test_inds]
 
     if TRANSFER_PATH is None:
-        # model = rnn_model_v2(n_classes=y.shape[1])
-        model = rnn_model(n_classes=y.shape[1], n_features_wo_token=None, attention=False)
+        model = rnn_model_v2(n_classes=y.shape[1])
+        # model = rnn_model(n_classes=y.shape[1], n_features_wo_token=None, attention=False)
     else:
         model = transfer_model(mdl_path=TRANSFER_PATH, n_classes_new=y.shape[1],
                                prev_model_output_layer=LAYER_NAME, freeze=TRANSFER_FREEZE)
