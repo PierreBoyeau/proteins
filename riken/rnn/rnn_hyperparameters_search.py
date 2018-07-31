@@ -4,18 +4,12 @@ import pandas as pd
 
 from tensorflow import flags
 from keras.preprocessing.sequence import pad_sequences
-from keras.models import load_model
-from keras.models import Sequential
-from keras.layers import Dense, Dropout
-from keras.layers import Embedding
-from keras.layers import CuDNNLSTM
-from keras.layers import Conv1D
-from keras.layers import Input
-from keras.layers import Concatenate
-from keras.layers import Bidirectional
-from keras.layers import Permute, Reshape, Multiply
+from keras.models import load_model, Input, Sequential
+from keras.layers import Embedding, Bidirectional, Dense, Dropout, CuDNNLSTM, Conv1D
+from keras.layers import Activation, Permute, Reshape, Multiply, RepeatVector, Lambda, Concatenate
+import keras.backend as K
 from keras.models import Model
-from keras.optimizers import Adam
+from keras.optimizers import Adam, SGD
 from keras.callbacks import TensorBoard, ModelCheckpoint
 
 from riken.rnn import records_maker
@@ -28,9 +22,11 @@ from keras.backend.tensorflow_backend import set_session
 python rnn_hyperparameters_search.py \
 -max_len 500 \
 -lr 0.001 \
--data_path /home/pierre/riken/data/pfam/pfam_data.tsv \
+-data_path /home/pierre/riken/data/swiss/swiss_with_clans.tsv \
 -key_to_predict clan \
--log_dir logs_rnn_v2_pfam
+-log_dir logs_rnn_new_attention \
+-memory_fraction 0.4
+
 
 
 python rnn_hyperparameters_search.py \
@@ -160,7 +156,36 @@ def rnn_model_v2(n_classes):
     return mdl
 
 
-def transfer_model(n_classes_new, mdl_path, prev_model_output_layer='lstm_2', freeze=False):
+def rnn_model_attention(n_classes):
+    aa_ind = Input(shape=(MAXLEN,), name='aa_indice')
+    h = get_embeddings(aa_ind)
+
+    h = Conv1D(100, kernel_size=3, activation='relu', padding='same')(h)
+
+    h = Dropout(rate=0.5)(h)
+    h = Bidirectional(CuDNNLSTM(100, return_sequences=True))(h)
+    # h = CuDNNLSTM(100, return_sequences=True)(h)
+
+    attention = Dense(1)(h)
+    attention = Lambda(lambda x: K.squeeze(x, axis=2))(attention)
+    attention = Activation(activation='softmax')(attention)
+    attention = RepeatVector(200)(attention)
+    attention = Permute((2, 1))(attention)
+
+    last = Multiply()([attention, h])
+    last = Lambda(lambda x: K.sum(x, axis=1), output_shape=(200,))(last)
+
+    h = Dense(n_classes, activation='softmax')(last)
+    mdl = Model(inputs=aa_ind, outputs=h)
+
+    optimizer = Adam(lr=LR)
+    mdl.compile(loss='categorical_crossentropy',
+                optimizer=optimizer,
+                metrics=['accuracy'])
+    return mdl
+
+
+def transfer_model(n_classes_new, mdl_path, prev_model_output_layer='lstm_2', freeze=False, lr=1e-3):
     prev_mdl = load_model(mdl_path)
     prev_mdl.layers.pop()
     if freeze:
@@ -172,7 +197,7 @@ def transfer_model(n_classes_new, mdl_path, prev_model_output_layer='lstm_2', fr
 
     mdl = Model(inputs=prev_mdl.input, outputs=top_mdl(prev_mdl.get_layer(prev_model_output_layer).output))
 
-    optimizer = Adam(lr=LR)
+    optimizer = Adam(lr=lr)
     mdl.compile(loss='categorical_crossentropy',
                 optimizer=optimizer,
                 metrics=['accuracy'])
@@ -240,11 +265,13 @@ if __name__ == '__main__':
     # features_train, features_test = features[train_inds], features[test_inds]
 
     if TRANSFER_PATH is None:
-        model = rnn_model_v2(n_classes=y.shape[1])
+        # model = rnn_model_v2(n_classes=y.shape[1])
+        model = rnn_model_attention(n_classes=y.shape[1])
+
         # model = rnn_model(n_classes=y.shape[1], n_features_wo_token=None, attention=False)
     else:
         model = transfer_model(mdl_path=TRANSFER_PATH, n_classes_new=y.shape[1],
-                               prev_model_output_layer=LAYER_NAME, freeze=TRANSFER_FREEZE)
+                               prev_model_output_layer=LAYER_NAME, freeze=TRANSFER_FREEZE, lr=LR)
     print(model.summary())
 
     tb = TensorBoard(log_dir=LOG_DIR,
