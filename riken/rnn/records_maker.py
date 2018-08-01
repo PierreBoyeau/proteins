@@ -5,6 +5,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from keras.preprocessing.sequence import pad_sequences
 
+from riken.prot_features.prot_features import chars, chars_to_idx
 from riken.prot_features import prot_features
 
 flags = tf.flags
@@ -13,43 +14,12 @@ MAX_LEN = 500
 RANDOM_STATE = 42
 VALUE = -1
 
-chars = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N',
-         'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
-chars_to_idx = {char: idx+1 for (idx, char) in enumerate(chars)}
-blosom_80 = prot_features.get_blosum80_dict_to_features()
-# blosom_80['U'] = np.zeros()
-
 
 def safe_char_to_idx(char):
     if char in chars_to_idx:
         return chars_to_idx[char]
     else:
         return
-
-
-def create_overall_static_aa_mat(normalize=True):
-    res_mat = np.concatenate([create_blosom_80_mat(), create_amino_acids_prop_mat()], axis=1)
-    if normalize:
-        res_mat = (res_mat - res_mat.mean(axis=0))  / res_mat.std(axis=0)
-    return res_mat
-
-
-def create_blosom_80_mat():
-    len_mat = len(blosom_80['A'])
-    zeros = np.zeros(len_mat)
-    mat = [zeros]  # Value for 0 index
-    for char in chars:
-        if char in blosom_80:
-            mat.append(blosom_80[char])
-        else:
-            mat.append(zeros)
-    return np.array(mat)
-
-
-def create_amino_acids_prop_mat():
-    prop_df = prot_features.get_amino_acids_chemical_properties()
-    prop_df = prop_df.reindex(['NULL']+chars).fillna(0)
-    return prop_df.values
 
 
 def _int64_feature(value):
@@ -73,7 +43,7 @@ def get_feat(int_seq_tokens):
             feat = np.zeros(feat_len)
         else:
             try:
-                char = chars[ind-1]
+                char = chars[ind - 1]
                 feat = np.array(aa_to_feat[char])
             except KeyError:
                 feat = np.zeros(feat_len)
@@ -81,11 +51,11 @@ def get_feat(int_seq_tokens):
     return np.array(sequence_features)
 
 
-def write_record(my_df, record_path, pssm_format_file='../data/psiblast/swiss/{}_pssm.txt'):
-    sequences, y, indices = my_df['sequences'].values, my_df['clan'].astype('category'), my_df.index.values
+def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swiss/{}_pssm.txt'):
+    sequences, y, indices = my_df['sequences'].values, my_df[y_tag].astype('category'), my_df.index.values
     writer = tf.python_io.TFRecordWriter(record_path)
     for sen, label_id, id in zip(tqdm(sequences), y.cat.codes, indices):
-        pssm_path = pssm_format_file.format(id)
+        pssm_path = pssm_format_fi.format(id)
         pssm = pd.read_csv(pssm_path, sep=' ', skiprows=2, skipfooter=6, skipinitialspace=True)\
             .reset_index(level=[2, 3])
         pssm_feat = pssm.iloc[:MAX_LEN].values
@@ -94,10 +64,10 @@ def write_record(my_df, record_path, pssm_format_file='../data/psiblast/swiss/{}
         pssm_mat[-seq_len:] = pssm_feat
         pssm_mat = pssm_mat.reshape(-1)
 
-        if seq_len != len(sen):
-            print('Inconsistency for protein id : {}'.format(id))
-            print(sen)
-            print(pssm.index.values)
+        # if seq_len != len(sen):
+        #     print('Inconsistency for protein id : {}'.format(id))
+        #     print(sen)
+        #     print(pssm.index.values)
 
         tokens = [char for char in sen]
         tokens = np.array([safe_char_to_idx(char) for char in tokens])
@@ -125,17 +95,15 @@ if __name__ == '__main__':
     train_records_filename = FLAGS.train_path
     val_records_filename = FLAGS.val_path
 
-    # pfam_path = '/home/pierre/riken/data/pfam/Pfam-A.fasta'
-    # clans_families_path = '/home/pierre/riken/data/pfam/Pfam-A.clans.tsv'
-    # df = reader.pfam_reader(pfam_path, clans_families_path).dropna()
-
     df = pd.read_csv('/home/pierre/riken/data/swiss/swiss_with_clans.tsv', sep='\t')
+    y_name = 'clan'
     df.loc[:, 'sequences'] = df.sequences_x
-    train_df, val_df = train_test_split(df, random_state=RANDOM_STATE, test_size=0.1)
+    train_df, val_df = train_test_split(df, random_state=RANDOM_STATE, test_size=0.2)
 
+    pssm_format_file = '../../data/psiblast/swiss/{}_pssm.txt'
     # Writing Train data
-    write_record(train_df, train_records_filename)
+    write_record(train_df, train_records_filename, y_tag=y_name, pssm_format_fi=pssm_format_file)
     # Writing Val data
-    write_record(val_df, val_records_filename)
+    write_record(val_df, val_records_filename, y_tag=y_name, pssm_format_fi=pssm_format_file)
 
-    print('Nb classes: ', len(np.unique(y)))
+    print('Nb classes: ', len(np.unique(df)))

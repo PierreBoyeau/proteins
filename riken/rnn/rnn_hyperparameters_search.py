@@ -9,10 +9,10 @@ from keras.layers import Embedding, Bidirectional, Dense, Dropout, CuDNNLSTM, Co
 from keras.layers import Activation, Permute, Reshape, Multiply, RepeatVector, Lambda, Concatenate
 import keras.backend as K
 from keras.models import Model
-from keras.optimizers import Adam, SGD
+from keras.optimizers import Adam, SGD, RMSprop
 from keras.callbacks import TensorBoard, ModelCheckpoint
 
-from riken.rnn import records_maker
+from riken.prot_features import prot_features
 from riken.protein_io import data_op
 
 import tensorflow as tf
@@ -62,13 +62,14 @@ chars = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N',
 chars_to_idx = {char: idx+1 for (idx, char) in enumerate(chars)}
 n_chars = len(chars)
 
-# STATIC_AA_TO_FEAT_M = records_maker.create_blosom_80_mat()
-STATIC_AA_TO_FEAT_M = records_maker.create_overall_static_aa_mat(normalize=True)
+STATIC_AA_TO_FEAT_M = prot_features.create_blosom_80_mat()
+# STATIC_AA_TO_FEAT_M = prot_features.create_overall_static_aa_mat(normalize=True)
 # TODO: Ensure that new features (chemical properties of AA bring something to the model) via CV?
 
 ONEHOT_M = np.zeros((n_chars + 1, n_chars + 1))
 ONEHOT_M[1:, 1:] = np.eye(n_chars, n_chars)
-
+MAXLEN = 500
+LR = 1e-3
 
 def rnn_model(n_classes, n_features_wo_token=None, attention=False):
     aa_ind = Input(shape=(MAXLEN,), name='aa_indice')
@@ -164,7 +165,6 @@ def rnn_model_attention(n_classes):
 
     h = Dropout(rate=0.5)(h)
     h = Bidirectional(CuDNNLSTM(100, return_sequences=True))(h)
-    # h = CuDNNLSTM(100, return_sequences=True)(h)
 
     attention = Dense(1)(h)
     attention = Lambda(lambda x: K.squeeze(x, axis=2))(attention)
@@ -185,7 +185,8 @@ def rnn_model_attention(n_classes):
     return mdl
 
 
-def transfer_model(n_classes_new, mdl_path, prev_model_output_layer='lstm_2', freeze=False, lr=1e-3):
+def transfer_model(n_classes_new, mdl_path, prev_model_output_layer='lstm_2', freeze=False, lr=1e-3, optim=Adam,
+                   kernel_initializer='glorot_uniform', dropout_rate=0.0):
     prev_mdl = load_model(mdl_path)
     prev_mdl.layers.pop()
     if freeze:
@@ -193,11 +194,18 @@ def transfer_model(n_classes_new, mdl_path, prev_model_output_layer='lstm_2', fr
             layer.trainable = True
 
     top_mdl = Sequential()
-    top_mdl.add(Dense(n_classes_new, activation='softmax'))
+    top_mdl.add(Dense(n_classes_new, activation='softmax', kernel_initializer=kernel_initializer))
+    last_layer = top_mdl(prev_mdl.get_layer(prev_model_output_layer).output)
+    last_layer = Dropout(rate=dropout_rate, name='dropout_last')(last_layer)
+    mdl = Model(inputs=prev_mdl.input, outputs=last_layer)
 
-    mdl = Model(inputs=prev_mdl.input, outputs=top_mdl(prev_mdl.get_layer(prev_model_output_layer).output))
+    # last_layer = prev_mdl.get_layer(prev_model_output_layer)
+    #
+    # mdl = Sequential()
+    # mdl.add(last_layer)
+    # mdl.add(Dense(n_classes_new, activation='softmax', kernel_initializer=kernel_initializer))
 
-    optimizer = Adam(lr=lr)
+    optimizer = optim(lr=lr)
     mdl.compile(loss='categorical_crossentropy',
                 optimizer=optimizer,
                 metrics=['accuracy'])
@@ -209,6 +217,34 @@ def safe_char_to_idx(char):
         return chars_to_idx[char]
     else:
         return 0
+
+
+def hyperp_search_and_train():
+    grid = {
+        'lr': [1e-2, 1e-3, 1e-4],
+        'optim': [Adam, RMSprop, SGD],
+        'kernel_initializer': ['glorot_normal', 'glorot_uniform'],
+        'dropout_rate': [0.0, 0.1, 0.3, 0.5]
+    }
+    from sklearn.model_selection import GridSearchCV
+    from keras.wrappers.scikit_learn import KerasClassifier
+    from sklearn.model_selection import StratifiedShuffleSplit
+    from sklearn.metrics import roc_auc_score, classification_report
+    mdl = KerasClassifier(transfer_model, mdl_path=TRANSFER_PATH, n_classes_new=y.shape[1],
+                          prev_model_output_layer=LAYER_NAME, freeze=TRANSFER_FREEZE, verbose=0)
+
+    cv = GridSearchCV(mdl, grid, scoring='roc_auc', cv=StratifiedShuffleSplit(n_splits=1, test_size=0.2),
+                      return_train_score=True, verbose=3)
+    cv.fit(Xtrain, ytrain)
+    pd.DataFrame(cv.cv_results_).to_csv('cv_results.tsv', sep='\t', index=False)
+    clf = cv.best_estimator_
+
+    file_content = '\nBest params: {}\nROC_AUC_SCORE : {}\n{}' \
+        .format(cv.best_params_,
+                roc_auc_score(ytest, clf.predict_proba(Xtest)[:, 1]),
+                classification_report(ytest, clf.predict(Xtest)))
+    with open('best_model_properties.txt', "w") as text_file:
+        text_file.write(file_content)
 
 
 if __name__ == '__main__':
@@ -224,6 +260,8 @@ if __name__ == '__main__':
     flags.DEFINE_bool('transfer_freeze', default=False, help='Should layers for last dense be froze')
     flags.DEFINE_string('layer_name', default=None, help='Name of layer to use for transfer')
     flags.DEFINE_string('groups', default='NO', help='should we use groups')
+    flags.DEFINE_bool('hyperp_search', default=False, help='Do hyperparameter selection')
+
     FLAGS = flags.FLAGS
 
     RANDOM_STATE = 42
@@ -237,13 +275,14 @@ if __name__ == '__main__':
     LAYER_NAME = FLAGS.layer_name
     GROUPS = FLAGS.groups if FLAGS.groups!='NO' else None
     SPLITTER = data_op.shuffle_indices if GROUPS is None else data_op.group_shuffle_indices
+    HYPERP_SEARCH = FLAGS.hyperp_search
 
-    config = tf.ConfigProto()
-    config.gpu_options.per_process_gpu_memory_fraction = FLAGS.memory_fraction
-    set_session(tf.Session(config=config))
+    # config = tf.ConfigProto()
+    # config.gpu_options.per_process_gpu_memory_fraction = FLAGS.memory_fraction
+    # set_session(tf.Session(config=config))
 
     df = pd.read_csv(DATA_PATH, sep='\t').dropna()
-    # df = df.loc[df.seq_len >= 50, :]
+    df = df.loc[df.seq_len >= 50, :]
 
     try:
         df.loc[:, 'sequences'] = df.sequences_x
@@ -258,20 +297,21 @@ if __name__ == '__main__':
     else:
         groups = df[GROUPS].values
 
-    # features = np.array([records_maker.get_feat(tokens) for tokens in X])
     train_inds, test_inds = SPLITTER(sequences, y, groups)
     print(train_inds.shape, test_inds.shape)
     Xtrain, Xtest, ytrain, ytest = X[train_inds], X[test_inds], y[train_inds], y[test_inds]
-    # features_train, features_test = features[train_inds], features[test_inds]
 
     if TRANSFER_PATH is None:
         # model = rnn_model_v2(n_classes=y.shape[1])
         model = rnn_model_attention(n_classes=y.shape[1])
-
-        # model = rnn_model(n_classes=y.shape[1], n_features_wo_token=None, attention=False)
     else:
         model = transfer_model(mdl_path=TRANSFER_PATH, n_classes_new=y.shape[1],
                                prev_model_output_layer=LAYER_NAME, freeze=TRANSFER_FREEZE, lr=LR)
+
+    if HYPERP_SEARCH:
+        hyperp_search_and_train()
+        exit(0)
+
     print(model.summary())
 
     tb = TensorBoard(log_dir=LOG_DIR,

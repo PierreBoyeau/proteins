@@ -27,6 +27,36 @@ HYDROPATHS = {
     'V':  4.200,
 }
 
+chars = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N',
+         'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+chars_to_idx = {char: idx+1 for (idx, char) in enumerate(chars)}
+
+
+def create_overall_static_aa_mat(normalize=True):
+    res_mat = np.concatenate([create_blosom_80_mat(), create_amino_acids_prop_mat()], axis=1)
+    if normalize:
+        res_mat = (res_mat - res_mat.mean(axis=0))  / res_mat.std(axis=0)
+    return res_mat
+
+
+def create_blosom_80_mat():
+    blosom_80 = get_blosum80_dict_to_features()
+    len_mat = len(blosom_80['A'])
+    zeros = np.zeros(len_mat)
+    mat = [zeros]  # Value for 0 index
+    for char in chars:
+        if char in blosom_80:
+            mat.append(blosom_80[char])
+        else:
+            mat.append(zeros)
+    return np.array(mat)
+
+
+def create_amino_acids_prop_mat():
+    prop_df = get_amino_acids_chemical_properties()
+    prop_df = prop_df.reindex(['NULL']+chars).fillna(0)
+    return prop_df.values
+
 
 def get_amino_acids_chemical_properties():
     dir_path = os.path.dirname(os.path.realpath(__file__))

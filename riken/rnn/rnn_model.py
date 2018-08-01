@@ -1,4 +1,6 @@
 import tensorflow as tf
+
+import prot_features
 import records_maker
 
 PSSM_DIM = None
@@ -30,7 +32,7 @@ class RnnModel:
         one_hot = tf.one_hot(self.labels, self.n_classes)
         embed = tf.one_hot(self.input, depth=self.n_classes)
 
-        blosom = tf.Variable(initial_value=records_maker.create_blosom_80_mat(),
+        blosom = tf.Variable(initial_value=prot_features.create_blosom_80_mat(),
                              dtype=tf.float32, trainable=False)
         inputs_replace_m1 = tf.nn.relu(self.input)  # Create indexes where -1 values (fill) are replaced by 0
         blosom_feat = tf.nn.embedding_lookup(params=blosom, ids=inputs_replace_m1)

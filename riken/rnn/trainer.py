@@ -17,10 +17,14 @@ python trainer.py \
 tf.logging.set_verbosity(tf.logging.INFO)
 
 flags = tf.flags
-flags.DEFINE_string('train_path', '/home/pierre/riken/rnn/train_data.tfrecords', 'Path to training records')
-flags.DEFINE_string('val_path', '/home/pierre/riken/rnn/val_data.tfrecords', 'Path to training records')
+flags.DEFINE_string('train_path', '/home/pierre/riken/riken/rnn/records/train_swiss_with_pssm.tfrecords',
+                    'Path to training records')
+flags.DEFINE_string('val_path', '/home/pierre/riken/riken/rnn/records/val_swiss_with_pssm.tfrecords',
+                    'Path to training records')
 flags.DEFINE_string('log_dir', '/home/pierre/riken/rnn/results', 'Path to training records')
 flags.DEFINE_integer('epochs', 10, 'Number of epochs to train the model on')
+flags.DEFINE_integer('batch_size', 128, 'Number of epochs to train the model on')
+
 flags.DEFINE_float('lr', 1e-2, 'Maximum sequence lenght')
 FLAGS = flags.FLAGS
 
@@ -29,6 +33,7 @@ train_params = {'lstm_size': 1288,
                 'max_size': 500,
                 'dropout_keep_p': 0.3,
                 'optimizer': tf.train.AdamOptimizer(learning_rate=FLAGS.lr),
+                'pssm_n_features': 42,
                 'conv_n_filters': 100}
 
 
@@ -36,7 +41,9 @@ def _parse_function(example_proto):
     features = {
         'sentence_len': tf.FixedLenFeature((), tf.int64, default_value=0),
         'tokens': tf.FixedLenFeature([train_params['max_size']], tf.int64),
-        'pssm_li': tf.FixedLenFeature((train_params['max_size']*train_params['pssm_n_features']), tf.float32,
+        # 'pssm_li': tf.FixedLenFeature([train_params['max_size']*train_params['pssm_n_features']], tf.float32,
+        #                               default_value=0),
+        'pssm_li': tf.FixedLenFeature((), tf.float32,
                                       default_value=0),
         'n_features_pssm': tf.FixedLenFeature((), tf.int64, default_value=0),
         'label': tf.FixedLenFeature((), tf.int64, default_value=0)
@@ -61,14 +68,19 @@ def train_input_fn():
     return input_fn(FLAGS.train_path, epochs=FLAGS.epochs)
 
 
+nxt = train_input_fn()
+sess = tf.InteractiveSession()
+sess.run(nxt)
+###############
+
 def eval_input_fn():
     return input_fn(FLAGS.val_path, epochs=1)
 
 
-def estimator_def(params):
-    def model_fn(features, labels, mode=None, parameters=None, config=None):
+def estimator_def(parameters):
+    def model_fn(features, labels, mode=None, params=None, config=None):
         model = rnn_model.RnnModel(input=features['tokens'], pssm_input=features['pssm_input'],
-                                   labels=labels, **parameters)
+                                   labels=labels, **params)
         if mode == tf.estimator.ModeKeys.PREDICT:
             predictions = model.probabilities
             return tf.estimator.EstimatorSpec(mode, predictions=predictions)
@@ -82,10 +94,10 @@ def estimator_def(params):
         return tf.estimator.EstimatorSpec(mode, loss=model.loss, train_op=train_op)
 
     return tf.estimator.Estimator(model_fn=model_fn,
-                                  params=params)
+                                  params=parameters)
 
 
-if __name__ == '__main':
+if __name__ == '__main__':
     mdl = estimator_def(train_params)
     evaluator = tf.contrib.estimator.InMemoryEvaluatorHook(estimator=mdl, input_fn=eval_input_fn)
     mdl.train(train_input_fn, hooks=[evaluator])
