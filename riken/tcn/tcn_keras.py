@@ -1,16 +1,25 @@
 import pandas as pd
-from keras.layers import Activation, Add, BatchNormalization, Conv1D, Dense, Dropout, Input, Lambda
+from keras.layers import Activation, Add, BatchNormalization, Conv1D, Dense, Dropout, Input, Lambda, RepeatVector, Permute, Multiply
 from keras.models import Model
 from keras.optimizers import Adam
 from keras.preprocessing.sequence import pad_sequences
 from keras.callbacks import TensorBoard, ModelCheckpoint
+import keras.backend as K
 from tensorflow import flags
 import os
-import data_op
-from riken.rnn.rnn_hyperparameters_search import get_embeddings, safe_char_to_idx
+from riken.protein_io import data_op
+from riken.rnn.rnn_hyperparameters_search import get_embeddings, safe_char_to_idx, transfer_model
 
 
-def residual_block(input, dilatation, kernel_size, n_filters, dropout_rate):
+"""
+python tcn_keras.py \
+max_len 1000 \
+lr 1e-3
+log_dir logs_v1_swisstrain
+"""
+
+
+def residual_block(input, dilatation, kernel_size, n_filters, dropout_rate, do1conv=True):
     conv = input
     for _ in range(2):
         conv = Conv1D(n_filters, kernel_size=kernel_size, dilation_rate=dilatation, padding='causal')(conv)
@@ -20,7 +29,11 @@ def residual_block(input, dilatation, kernel_size, n_filters, dropout_rate):
         conv = Activation(activation='relu')(conv)
         conv = Dropout(rate=dropout_rate)(conv)
 
-    rescaled_input = Conv1D(n_filters, kernel_size=1)(input)
+    if do1conv:
+        rescaled_input = Conv1D(n_filters, kernel_size=1)(input)
+    else:
+        rescaled_input = input
+
     last = Add()([conv, rescaled_input])
     return last
 
@@ -32,11 +45,22 @@ def tcn_model(n_classes, depth, n_filters, kernel_size, dropout_rate=0.0):
     # h = inp
 
     for it in range(depth):
-        h = residual_block(h, dilatation=2**it, n_filters=n_filters, kernel_size=kernel_size, dropout_rate=dropout_rate)
+        do1conv = (it == 0)  # 1conv done only first layer (elsewhere number of filters stays the same
+        h = residual_block(h, dilatation=2**it, n_filters=n_filters, kernel_size=kernel_size, dropout_rate=dropout_rate,
+                           do1conv=do1conv)
 
     # h = h[:, -1, :]
-    h = Lambda(lambda x: x[:, -1, :])(h)
-    h = Dense(n_classes, activation='softmax')(h)
+    # h = Lambda(lambda x: x[:, -1, :])(h)
+
+    attention = Dense(1)(h)
+    attention = Lambda(lambda x: K.squeeze(x, axis=2))(attention)
+    attention = Activation(activation='softmax')(attention)
+    attention = RepeatVector(200)(attention)
+    attention = Permute((2, 1))(attention)
+    last = Multiply()([attention, h])
+    last = Lambda(lambda x: K.sum(x, axis=1), output_shape=(200,))(last)
+
+    h = Dense(n_classes, activation='softmax')(last)
     mdl = Model(inputs=inp, outputs=h)
 
     optimizer = Adam(lr=LR)
@@ -48,7 +72,7 @@ def tcn_model(n_classes, depth, n_filters, kernel_size, dropout_rate=0.0):
 
 
 if __name__ == '__main__':
-    flags.DEFINE_integer('max_len', default=500, help='max sequence lenght')
+    flags.DEFINE_integer('max_len', default=1000, help='max sequence lenght')
     flags.DEFINE_float('lr', default=1e-3, help='learning rate')
     flags.DEFINE_string('data_path', default='/home/pierre/riken/data/swiss/swiss_with_clans.tsv',
                         help='path to tsv data')
@@ -59,7 +83,6 @@ if __name__ == '__main__':
     flags.DEFINE_string('layer_name', default=None, help='Name of layer to use for transfer')
     flags.DEFINE_string('groups', default='NO', help='should we use groups')
     FLAGS = flags.FLAGS
-
 
     RANDOM_STATE = 42
     MAXLEN = FLAGS.max_len
@@ -97,9 +120,9 @@ if __name__ == '__main__':
 
     if TRANSFER_PATH is None:
         # model = rnn_model_v2(n_classes=y.shape[1])
-        model = tcn_model(n_classes=y.shape[1], depth=4, n_filters=64, kernel_size=4, dropout_rate=0.5)
+        model = tcn_model(n_classes=y.shape[1], depth=5, n_filters=100, kernel_size=3, dropout_rate=0.5)
     else:
-        raise ReferenceError
+        model = transfer_model(n_classes_new=y.shape[1], mdl_path=TRANSFER_PATH, prev_model_output_layer='lambda_1')
     print(model.summary())
 
     tb = TensorBoard(log_dir=LOG_DIR)
