@@ -71,6 +71,7 @@ ONEHOT_M[1:, 1:] = np.eye(n_chars, n_chars)
 MAXLEN = 500
 LR = 1e-3
 
+
 def rnn_model(n_classes, n_features_wo_token=None, attention=False):
     aa_ind = Input(shape=(MAXLEN,), name='aa_indice')
     embed = Embedding(len(ONEHOT_M), output_dim=n_chars + 1, weights=[ONEHOT_M],
@@ -105,6 +106,11 @@ def rnn_model(n_classes, n_features_wo_token=None, attention=False):
 
 
 def attention_3d_block(inputs):
+    """
+    DEPRECIATED, do not use
+    :param inputs:
+    :return:
+    """
     # inputs.shape = (batch_size, time_steps, input_dim)
     input_dim = int(inputs.shape[2])
     time_steps = int(inputs.shape[1])
@@ -120,6 +126,11 @@ def attention_3d_block(inputs):
 
 
 def get_embeddings(inp):
+    """
+    Construct features from amino acid indexes
+    :param inp:
+    :return:
+    """
     embed = Embedding(len(ONEHOT_M), output_dim=n_chars + 1, weights=[ONEHOT_M],
                       trainable=False, dtype='float32')(inp)
 
@@ -286,7 +297,7 @@ if __name__ == '__main__':
 
     try:
         df.loc[:, 'sequences'] = df.sequences_x
-    except:
+    except AttributeError:
         pass
 
     sequences, y = df['sequences'].values, df[KEY_TO_PREDICT]

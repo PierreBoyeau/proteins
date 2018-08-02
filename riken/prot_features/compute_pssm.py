@@ -27,6 +27,11 @@ def parse_args():
 
 
 def save_protein_to_fasta(ptn):
+    """
+    Create temporary file for protein as FASTA to be read by the PSiBlast script
+    :param ptn:
+    :return:
+    """
     record = get_seqrecord(ptn)
     record_path = '/tmp/{}.fasta'.format(ptn.name)
     SeqIO.write(record, record_path, format='fasta')
@@ -34,6 +39,11 @@ def save_protein_to_fasta(ptn):
 
 
 def protein_routine(ptn):
+    """
+    Main function that save protein and run psiblast command
+    :param ptn:
+    :return:
+    """
     record_pt = save_protein_to_fasta(ptn)
     output_pssm = '{}_pssm.txt'.format(ptn.name)
     output = '{}_results.txt'.format(ptn.name)

@@ -16,6 +16,11 @@ VALUE = -1
 
 
 def safe_char_to_idx(char):
+    """
+    Use this function to safely get associated index linked to char
+    :param char:
+    :return:
+    """
     if char in chars_to_idx:
         return chars_to_idx[char]
     else:
@@ -35,6 +40,11 @@ def _byte_feature(value):
 
 
 def get_feat(int_seq_tokens):
+    """
+    DO NOT USE WITH static amino acid features (if this is the case, just access these features inside computation graph)
+    :param int_seq_tokens:
+    :return:
+    """
     aa_to_feat = prot_features.get_blosum80_dict_to_features()
     feat_len = len(aa_to_feat['A'])
     sequence_features = []

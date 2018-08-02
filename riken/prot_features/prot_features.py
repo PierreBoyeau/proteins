@@ -27,9 +27,17 @@ HYDROPATHS = {
     'V':  4.200,
 }
 
+let1_to_let3 = {'A': 'Ala', 'R': 'Arg', 'N': 'Asn', 'D': 'Asp', 'C': 'Cys', 'E': 'Glu', 'Q': 'Gln', 'G': 'Gly',
+                'H': 'His', 'I': 'Ile', 'L': 'Leu', 'K': 'Lys', 'M': 'Met', 'F': 'Phe', 'P': 'Pro', 'S': 'Ser',
+                'T': 'Thr', 'W': 'Trp', 'Y': 'Tyr', 'V': 'Val', }
+
 chars = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N',
          'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
-chars_to_idx = {char: idx+1 for (idx, char) in enumerate(chars)}
+chars_to_idx = {char: idx + 1 for (idx, char) in enumerate(chars)}
+
+aa_frequencies = {"Ala": 8.25, "Arg": 5.53, "Asn": 4.06, "Asp": 5.45, "Cys": 1.37, "Gln": 3.93, "Glu": 6.75,
+                  "Gly": 7.07, "His": 2.27, "Ile": 5.96, "Leu": 9.66, "Lys": 5.84, "Met": 2.42, "Phe": 3.86,
+                  "Pro": 4.70, "Ser": 6.56, "Thr": 5.34, "Trp": 1.08, "Tyr": 2.92, "Val": 6.87, }
 
 
 def create_overall_static_aa_mat(normalize=True):
