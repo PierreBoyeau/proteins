@@ -1,8 +1,10 @@
+import numpy as np
 import pandas as pd
 from Bio import SeqIO
 from Bio.Alphabet import IUPAC
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
+from tqdm import tqdm
 
 
 def read_fasta(filename):
@@ -43,3 +45,25 @@ def pfam_reader(fasta_path, family_clan_path):
 def get_seqrecord(elem):
     return SeqRecord(seq=Seq(elem.sequences, IUPAC.protein),
                      id=str(elem.name), name=str(elem.name))
+
+
+def offline_data_augmentation(indices_sequences, labels, switch_matrix, nb_aug=10):
+    """
+    Please refer to riken/riken/nn_utils/data_augmentation.py for more extensive explanation
+    :param indices_sequences: list of int sequences
+    :param labels:  associated labels
+    :param switch_matrix: probability matrix used for augmentation
+    :return: augmented_indices_sequences, augmented_labels
+    """
+    augmented_indices_sequences = []
+    augmented_labels = []
+    assert len(indices_sequences) == len(labels)
+    cumsum_probas = switch_matrix.cumsum(axis=1)
+    for sent, lbl in zip(indices_sequences, labels):
+        for _ in tqdm(range(nb_aug)):
+            n_words = len(sent)
+            dice = np.random.random(size=(n_words, 1))
+            choices = (dice < cumsum_probas[sent]).argmax(axis=1)
+            augmented_indices_sequences.append(choices)
+            augmented_labels.append(lbl)
+    return augmented_indices_sequences, augmented_labels
