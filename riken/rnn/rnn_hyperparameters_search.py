@@ -315,8 +315,10 @@ if __name__ == '__main__':
     Xtrain, Xtest, ytrain, ytest = X[train_inds], X[test_inds], y[train_inds], y[test_inds]
 
     if DATA_AUGMENTATION:
+        print('PERFORMING DATA AUGMENTATION ...')
         Xtrain, ytrain = reader.offline_data_augmentation(indices_sequences=Xtrain, labels=ytrain,
                                                           switch_matrix=replacement_mat.replacement_mat)
+        Xtrain, ytrain = np.array(Xtrain), np.array(ytrain)
 
     if TRANSFER_PATH is None:
         # model = rnn_model_v2(n_classes=y.shape[1])
@@ -332,10 +334,7 @@ if __name__ == '__main__':
 
     print(model.summary())
 
-    tb = TensorBoard(log_dir=LOG_DIR,
-                     # histogram_freq=1,
-                     # write_grads=True
-                     )
+    tb = TensorBoard(log_dir=LOG_DIR)
     ckpt = ModelCheckpoint(filepath=os.path.join(LOG_DIR, 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
                            verbose=1, save_best_only=False, save_weights_only=False, mode='auto', period=1)
     model.fit(Xtrain, ytrain,  # bf [Xtrain, features_train], ...
