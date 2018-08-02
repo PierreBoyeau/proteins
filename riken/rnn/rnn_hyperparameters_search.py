@@ -13,7 +13,7 @@ from keras.optimizers import Adam, SGD, RMSprop
 from keras.callbacks import TensorBoard, ModelCheckpoint
 
 from riken.prot_features import prot_features
-from riken.protein_io import data_op
+from riken.protein_io import data_op, reader, replacement_mat
 
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
@@ -268,6 +268,7 @@ if __name__ == '__main__':
     flags.DEFINE_string('key_to_predict', default='clan', help='key to predict (y)')
     flags.DEFINE_string('log_dir', default='./logs', help='path to save ckpt and summaries')
     flags.DEFINE_string('transfer_path', default=None, help='path to ckpt if doing transfer learning')
+    flags.DEFINE_bool('data_augmentation', default=False, help='Do Data Augmentation during Training?')
     flags.DEFINE_bool('transfer_freeze', default=False, help='Should layers for last dense be froze')
     flags.DEFINE_string('layer_name', default=None, help='Name of layer to use for transfer')
     flags.DEFINE_string('groups', default='NO', help='should we use groups')
@@ -282,6 +283,7 @@ if __name__ == '__main__':
     KEY_TO_PREDICT = FLAGS.key_to_predict
     LOG_DIR = FLAGS.log_dir
     TRANSFER_PATH = FLAGS.transfer_path
+    DATA_AUGMENTATION = FLAGS.data_augmentation
     TRANSFER_FREEZE = FLAGS.transfer_freeze
     LAYER_NAME = FLAGS.layer_name
     GROUPS = FLAGS.groups if FLAGS.groups!='NO' else None
@@ -312,6 +314,10 @@ if __name__ == '__main__':
     print(train_inds.shape, test_inds.shape)
     Xtrain, Xtest, ytrain, ytest = X[train_inds], X[test_inds], y[train_inds], y[test_inds]
 
+    if DATA_AUGMENTATION:
+        Xtrain, ytrain = reader.offline_data_augmentation(indices_sequences=Xtrain, labels=ytrain,
+                                                          switch_matrix=replacement_mat.replacement_mat)
+
     if TRANSFER_PATH is None:
         # model = rnn_model_v2(n_classes=y.shape[1])
         model = rnn_model_attention(n_classes=y.shape[1])
@@ -320,6 +326,7 @@ if __name__ == '__main__':
                                prev_model_output_layer=LAYER_NAME, freeze=TRANSFER_FREEZE, lr=LR)
 
     if HYPERP_SEARCH:
+        print('PERFORMING HYPERPARAMETER SEARCH')
         hyperp_search_and_train()
         exit(0)
 

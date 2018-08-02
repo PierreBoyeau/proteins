@@ -59,8 +59,8 @@ def offline_data_augmentation(indices_sequences, labels, switch_matrix, nb_aug=1
     augmented_labels = []
     assert len(indices_sequences) == len(labels)
     cumsum_probas = switch_matrix.cumsum(axis=1)
-    for sent, lbl in zip(indices_sequences, labels):
-        for _ in tqdm(range(nb_aug)):
+    for sent, lbl in zip(tqdm(indices_sequences), labels):
+        for _ in range(nb_aug):
             n_words = len(sent)
             dice = np.random.random(size=(n_words, 1))
             choices = (dice < cumsum_probas[sent]).argmax(axis=1)
