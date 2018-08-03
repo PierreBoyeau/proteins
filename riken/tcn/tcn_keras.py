@@ -10,12 +10,24 @@ import os
 from riken.protein_io import data_op
 from riken.rnn.rnn_hyperparameters_search import get_embeddings, safe_char_to_idx, transfer_model
 
+from sklearn.metrics import roc_auc_score
 
 """
 python tcn_keras.py \
 max_len 1000 \
 lr 1e-3
 log_dir logs_v1_swisstrain
+
+
+python tcn_keras.py \
+-max_len 1000 \
+-lr 1e-3 \
+-layer_name lambda_2 \
+-data_path /home/pierre/riken/data/riken_data/complete_from_xlsx.tsv \
+-key_to_predict is_allergenic \
+-log_dir logs_transfer_second_try \
+-groups species \
+
 """
 
 
@@ -55,10 +67,10 @@ def tcn_model(n_classes, depth, n_filters, kernel_size, dropout_rate=0.0):
     attention = Dense(1)(h)
     attention = Lambda(lambda x: K.squeeze(x, axis=2))(attention)
     attention = Activation(activation='softmax')(attention)
-    attention = RepeatVector(200)(attention)
+    attention = RepeatVector(n_filters)(attention)
     attention = Permute((2, 1))(attention)
     last = Multiply()([attention, h])
-    last = Lambda(lambda x: K.sum(x, axis=1), output_shape=(200,))(last)
+    last = Lambda(lambda x: K.sum(x, axis=1), output_shape=(n_filters,))(last)
 
     h = Dense(n_classes, activation='softmax')(last)
     mdl = Model(inputs=inp, outputs=h)
@@ -97,11 +109,11 @@ if __name__ == '__main__':
     SPLITTER = data_op.shuffle_indices if GROUPS is None else data_op.group_shuffle_indices
 
     df = pd.read_csv(DATA_PATH, sep='\t').dropna()
-    df = df.loc[df.seq_len >= 50, :]
+    # df = df.loc[df.seq_len >= 50, :]
 
     try:
         df.loc[:, 'sequences'] = df.sequences_x
-    except:
+    except AttributeError:
         pass
 
     sequences, y = df['sequences'].values, df[KEY_TO_PREDICT]
@@ -120,7 +132,7 @@ if __name__ == '__main__':
 
     if TRANSFER_PATH is None:
         # model = rnn_model_v2(n_classes=y.shape[1])
-        model = tcn_model(n_classes=y.shape[1], depth=5, n_filters=100, kernel_size=3, dropout_rate=0.5)
+        model = tcn_model(n_classes=y.shape[1], depth=7, n_filters=50, kernel_size=3, dropout_rate=0.5)
     else:
         model = transfer_model(n_classes_new=y.shape[1], mdl_path=TRANSFER_PATH, prev_model_output_layer='lambda_1')
     print(model.summary())
@@ -133,4 +145,4 @@ if __name__ == '__main__':
               epochs=100,
               validation_data=(Xtest, ytest),
               callbacks=[tb, ckpt])
-
+    print(roc_auc_score(ytest[:, 1], model.predict(Xtest)[:, 1]))
