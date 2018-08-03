@@ -1,7 +1,6 @@
 import tensorflow as tf
 
-import prot_features
-import records_maker
+from riken.prot_features import prot_features
 
 PSSM_DIM = None
 

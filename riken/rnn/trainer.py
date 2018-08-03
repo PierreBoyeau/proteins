@@ -68,9 +68,9 @@ def train_input_fn():
     return input_fn(FLAGS.train_path, epochs=FLAGS.epochs)
 
 
-nxt = train_input_fn()
-sess = tf.InteractiveSession()
-sess.run(nxt)
+# nxt = train_input_fn()
+# sess = tf.InteractiveSession()
+# sess.run(nxt)
 ###############
 
 def eval_input_fn():
