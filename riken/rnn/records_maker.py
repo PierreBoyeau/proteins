@@ -8,6 +8,8 @@ from keras.preprocessing.sequence import pad_sequences
 from riken.prot_features.prot_features import chars, chars_to_idx
 from riken.prot_features import prot_features
 
+from riken.protein_io import data_op
+
 flags = tf.flags
 
 MAX_LEN = 500
@@ -65,6 +67,7 @@ def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swi
     sequences, y, indices = my_df['sequences'].values, my_df[y_tag].astype('category'), my_df.index.values
     writer = tf.python_io.TFRecordWriter(record_path)
     for sen, label_id, id in zip(tqdm(sequences), y.cat.codes, indices):
+        # print(sen)
         pssm_path = pssm_format_fi.format(id)
         pssm = pd.read_csv(pssm_path, sep=' ', skiprows=2, skipfooter=6, skipinitialspace=True)\
             .reset_index(level=[2, 3])
@@ -73,6 +76,7 @@ def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swi
         pssm_mat = np.zeros(shape=(MAX_LEN, n_features_pssm))
         pssm_mat[-seq_len:] = pssm_feat
         pssm_mat = pssm_mat.reshape(-1)
+        print(pssm_mat)
 
         # if seq_len != len(sen):
         #     print('Inconsistency for protein id : {}'.format(id))
@@ -104,13 +108,23 @@ if __name__ == '__main__':
 
     train_records_filename = FLAGS.train_path
     val_records_filename = FLAGS.val_path
-
-    df = pd.read_csv('/home/pierre/riken/data/swiss/swiss_with_clans.tsv', sep='\t')
-    y_name = 'clan'
-    df.loc[:, 'sequences'] = df.sequences_x
-    train_df, val_df = train_test_split(df, random_state=RANDOM_STATE, test_size=0.2)
-
+    data_path = '/home/pierre/riken/data/riken_data/complete_from_xlsx.tsv'
+    # data_path = '/home/pierre/riken/data/swiss/swiss_with_clans.tsv'
     pssm_format_file = '../../data/psiblast/swiss/{}_pssm.txt'
+    y_name = 'is_allergenic'
+    group_name = 'species'
+
+    df = pd.read_csv(data_path, sep='\t').dropna()
+    # df.loc[:, 'sequences'] = df.sequences_x
+
+    if group_name is None:
+        train_df, val_df = train_test_split(df, random_state=RANDOM_STATE, test_size=0.2)
+    else:
+        df = df[df.seq_len >= 50]
+        train_inds, val_inds = data_op.group_shuffle_indices(df.sequences, df[y_name], df[group_name])
+        print(train_inds.shape, val_inds)
+        train_df, val_df = df.iloc[train_inds], df.iloc[val_inds]
+
     # Writing Train data
     write_record(train_df, train_records_filename, y_tag=y_name, pssm_format_fi=pssm_format_file)
     # Writing Val data
