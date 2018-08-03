@@ -39,12 +39,13 @@ class RnnModel:
         inputs_replace_m1 = tf.nn.relu(self.input)  # Create indexes where -1 values (fill) are replaced by 0
         aa_static_feat = tf.nn.embedding_lookup(params=static_feat_mat, ids=inputs_replace_m1)
 
-        pssm_mat = tf.reshape(self.pssm_input, shape=[None, self.max_size, PSSM_DIM])
+        # pssm_mat = tf.reshape(self.pssm_input, shape=[None, self.max_size, PSSM_DIM])
+        pssm_mat = self.pssm_input
 
         # h = embed
-        h = tf.concat([embed, aa_static_feat, pssm_mat])
+        h = tf.concat([embed, aa_static_feat, pssm_mat], axis=2)
 
-        h = tf.layers.conv1d(h, filters=100, kernel_size=3, activation=tf.nn.relu)
+        h = tf.layers.conv1d(h, filters=100, kernel_size=3, activation=tf.nn.relu, padding='same')
         h = tf.layers.dropout(h, rate=self.dropout_keep_p)
         # cells = []
         # for sz in lstm_size_list:
@@ -63,16 +64,26 @@ class RnnModel:
 
         fw_lstm = self.cell_fn(num_units=self.lstm_size)
         bw_lstm = self.cell_fn(num_units=self.lstm_size)
-        outputs, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm, bw_lstm, h)
-        outputs = tf.concat(outputs, 2)
 
+        # fw_initial_state = tf.zeros(shape=())
+        # bw_initial_state =
+
+        outputs, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm, bw_lstm, h, dtype=tf.float32)
+        outputs = tf.concat(outputs, 2)
 
         # last_output = outputs[:, -1, :]
         attention = tf.layers.Dense(1, activation=None)(outputs)
-        attention = tf.squeeze(attention)
+        attention = tf.squeeze(attention, axis=2)
         attention = tf.nn.softmax(attention, axis=1)
 
-        last_output = tf.multiply(attention, outputs)
+        outputs = tf.transpose(outputs, perm=[0, 2, 1])
+        print(outputs)
+        last_output = tf.multiply(outputs, attention)
+        print(last_output)
+        last_output = tf.transpose(last_output, perm=[0, 2, 1])
+        last_output = tf.reduce_sum(last_output, axis=1)
+        print(last_output)
+        # last_output = tf.tensordot(outputs, attention, axes=1)
 
         final = tf.layers.dense(last_output, self.n_classes, activation=None)
         self.logits = final
@@ -81,7 +92,7 @@ class RnnModel:
 
         self.probabilities = tf.nn.softmax(logits=self.logits)
         acc, acc_op = tf.metrics.accuracy(self.labels, tf.argmax(self.probabilities, 1))
-        self.acc = acc
+        self.acc = acc, acc_op
 
         self.optimizer = optimizer.minimize(self.loss, global_step=tf.train.get_global_step())
         self.init_op = tf.initialize_all_variables()

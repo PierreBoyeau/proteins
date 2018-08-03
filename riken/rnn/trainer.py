@@ -1,7 +1,6 @@
-import os
 import tensorflow as tf
 
-import rnn_model
+from riken.rnn import rnn_model
 
 
 """
@@ -17,23 +16,34 @@ python trainer.py \
 tf.logging.set_verbosity(tf.logging.INFO)
 
 flags = tf.flags
-flags.DEFINE_string('train_path', '/home/pierre/riken/riken/rnn/records/train_swiss_with_pssm.tfrecords',
+flags.DEFINE_string('train_path',
+                    # '/home/pierre/riken/riken/rnn/records/train_swiss_with_pssm.tfrecords',
+                    '/home/pierre/riken/riken/rnn/records/train_riken_data.tfrecords',
                     'Path to training records')
-flags.DEFINE_string('val_path', '/home/pierre/riken/riken/rnn/records/val_swiss_with_pssm.tfrecords',
+flags.DEFINE_string('val_path',
+                    # '/home/pierre/riken/riken/rnn/records/val_swiss_with_pssm.tfrecords',
+                    '/home/pierre/riken/riken/rnn/records/test_riken_data.tfrecords',
                     'Path to training records')
-flags.DEFINE_string('log_dir', '/home/pierre/riken/rnn/results', 'Path to training records')
+flags.DEFINE_string('log_dir', './results', 'Path to training records')
 flags.DEFINE_integer('epochs', 10, 'Number of epochs to train the model on')
 flags.DEFINE_integer('batch_size', 128, 'Number of epochs to train the model on')
 
 flags.DEFINE_float('lr', 1e-2, 'Maximum sequence lenght')
 FLAGS = flags.FLAGS
 
-train_params = {'lstm_size': 1288,
-                'n_classes': 598,
+# train_params = {'lstm_size': 128,
+#                 'n_classes': 598,
+#                 'max_size': 500,
+#                 'dropout_keep_p': 0.3,
+#                 'optimizer': tf.train.AdamOptimizer(learning_rate=FLAGS.lr),
+#                 'conv_n_filters': 100}
+
+pssm_nb_examples = 42
+train_params = {'lstm_size': 128,
+                'n_classes': 2,
                 'max_size': 500,
                 'dropout_keep_p': 0.3,
                 'optimizer': tf.train.AdamOptimizer(learning_rate=FLAGS.lr),
-                'pssm_n_features': 42,
                 'conv_n_filters': 100}
 
 
@@ -41,14 +51,16 @@ def _parse_function(example_proto):
     features = {
         'sentence_len': tf.FixedLenFeature((), tf.int64, default_value=0),
         'tokens': tf.FixedLenFeature([train_params['max_size']], tf.int64),
-        # 'pssm_li': tf.FixedLenFeature([train_params['max_size']*train_params['pssm_n_features']], tf.float32,
+        # 'pssm_li': tf.FixedLenFeature([train_params['max_size']*42], tf.float32,
         #                               default_value=0),
-        'pssm_li': tf.FixedLenFeature((), tf.float32,
-                                      default_value=0),
+        # 'pssm_li': tf.VarLenFeature(tf.float32),
+        'pssm_li': tf.FixedLenFeature((train_params['max_size']*pssm_nb_examples), tf.float32),
         'n_features_pssm': tf.FixedLenFeature((), tf.int64, default_value=0),
         'label': tf.FixedLenFeature((), tf.int64, default_value=0)
     }
     parsed_features = tf.parse_single_example(example_proto, features)
+    parsed_features['pssm_li'] = tf.reshape(parsed_features['pssm_li'],
+                                            shape=(train_params['max_size'], pssm_nb_examples))
     labels = parsed_features.pop('label')
     return parsed_features, labels
 
@@ -68,18 +80,19 @@ def train_input_fn():
     return input_fn(FLAGS.train_path, epochs=FLAGS.epochs)
 
 
-# nxt = train_input_fn()
-# sess = tf.InteractiveSession()
-# sess.run(nxt)
-###############
-
 def eval_input_fn():
     return input_fn(FLAGS.val_path, epochs=1)
 
 
+# sess = tf.InteractiveSession()
+# nxt = train_input_fn()
+# for it in range(400):
+#     print(it)
+#     val = sess.run(nxt)
+
 def estimator_def(parameters):
     def model_fn(features, labels, mode=None, params=None, config=None):
-        model = rnn_model.RnnModel(input=features['tokens'], pssm_input=features['pssm_input'],
+        model = rnn_model.RnnModel(input=features['tokens'], pssm_input=features['pssm_li'],
                                    labels=labels, **params)
         if mode == tf.estimator.ModeKeys.PREDICT:
             predictions = model.probabilities
@@ -91,16 +104,22 @@ def estimator_def(parameters):
         # Create training op.
         assert mode == tf.estimator.ModeKeys.TRAIN
         train_op = model.optimize
-        return tf.estimator.EstimatorSpec(mode, loss=model.loss, train_op=train_op)
+        hooks = [tf.train.LoggingTensorHook({'loss': model.loss}, every_n_iter=5)]
+
+        return tf.estimator.EstimatorSpec(mode, loss=model.loss, train_op=train_op, training_hooks=hooks)
 
     return tf.estimator.Estimator(model_fn=model_fn,
                                   params=parameters)
 
 
 if __name__ == '__main__':
+    tf.logging.set_verbosity(tf.logging.INFO)
+
     mdl = estimator_def(train_params)
-    evaluator = tf.contrib.estimator.InMemoryEvaluatorHook(estimator=mdl, input_fn=eval_input_fn)
-    mdl.train(train_input_fn, hooks=[evaluator])
+
+    # evaluator = tf.contrib.estimator.InMemoryEvaluatorHook(estimator=mdl, input_fn=eval_input_fn)
+    mdl.train(train_input_fn,
+              )
 
 # def manual_train():
 #     optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)

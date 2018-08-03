@@ -73,10 +73,13 @@ def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swi
             .reset_index(level=[2, 3])
         pssm_feat = pssm.iloc[:MAX_LEN].values
         seq_len, n_features_pssm = pssm_feat.shape
+        # print(n_features_pssm)
         pssm_mat = np.zeros(shape=(MAX_LEN, n_features_pssm))
         pssm_mat[-seq_len:] = pssm_feat
         pssm_mat = pssm_mat.reshape(-1)
-        print(pssm_mat)
+        if np.isnan(pssm_mat).any():
+            print('issue')
+        # print(pssm_mat)
 
         # if seq_len != len(sen):
         #     print('Inconsistency for protein id : {}'.format(id))
