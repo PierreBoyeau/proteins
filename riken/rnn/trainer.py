@@ -1,8 +1,7 @@
 import tensorflow as tf
 
 from riken.rnn import rnn_model
-
-
+import time
 """
 python trainer.py \
 -train_path /home/pierre/train_data.tfrecords \
@@ -27,16 +26,14 @@ flags.DEFINE_string('val_path',
 flags.DEFINE_string('log_dir', './results', 'Path to training records')
 flags.DEFINE_integer('epochs', 10, 'Number of epochs to train the model on')
 flags.DEFINE_integer('batch_size', 128, 'Number of epochs to train the model on')
-
-flags.DEFINE_float('lr', 1e-2, 'Maximum sequence lenght')
+flags.DEFINE_boolean('do_train', False, 'do train')
+flags.DEFINE_boolean('do_eval', False, 'do eval')
+flags.DEFINE_float('lr', 1e-3, 'Maximum sequence lenght')
 FLAGS = flags.FLAGS
 
-# train_params = {'lstm_size': 128,
-#                 'n_classes': 598,
-#                 'max_size': 500,
-#                 'dropout_keep_p': 0.3,
-#                 'optimizer': tf.train.AdamOptimizer(learning_rate=FLAGS.lr),
-#                 'conv_n_filters': 100}
+SAVE_EVERY = 600
+
+assert FLAGS.do_eval == (not FLAGS.do_train)
 
 pssm_nb_examples = 42
 train_params = {'lstm_size': 128,
@@ -84,12 +81,6 @@ def eval_input_fn():
     return input_fn(FLAGS.val_path, epochs=1)
 
 
-# sess = tf.InteractiveSession()
-# nxt = train_input_fn()
-# for it in range(400):
-#     print(it)
-#     val = sess.run(nxt)
-
 def estimator_def(parameters, config):
     def model_fn(features, labels, mode=None, params=None, config=None):
         model = rnn_model.RnnModel(input=features['tokens'], pssm_input=features['pssm_li'],
@@ -100,15 +91,13 @@ def estimator_def(parameters, config):
 
         if mode == tf.estimator.ModeKeys.EVAL:
             return tf.estimator.EstimatorSpec(
-                mode, loss=model.loss, eval_metric_ops={'accuracy': model.acc})
+                mode, loss=model.loss, eval_metric_ops={'accuracy': model.acc, 'auc': model.auc})
         # Create training op.
         assert mode == tf.estimator.ModeKeys.TRAIN
         train_op = model.optimize
 
-        # hooks = [tf.train.LoggingTensorHook({'loss': model.loss}, every_n_iter=5)]
         return tf.estimator.EstimatorSpec(mode, loss=model.loss, train_op=train_op,
-                                          # training_hooks=hooks
-                                          )
+                                          eval_metric_ops={'accuracy': model.acc, 'auc': model.auc})
 
     return tf.estimator.Estimator(model_fn=model_fn,
                                   params=parameters, config=config)
@@ -117,60 +106,24 @@ def estimator_def(parameters, config):
 if __name__ == '__main__':
     tf.logging.set_verbosity(tf.logging.INFO)
 
-    config = tf.estimator.RunConfig(model_dir=FLAGS.log_dir, log_step_count_steps=10, keep_checkpoint_max=100)
+    sess_config = tf.ConfigProto()
+    sess_config.gpu_options.per_process_gpu_memory_fraction = 0.4
+    config = tf.estimator.RunConfig(model_dir=FLAGS.log_dir, log_step_count_steps=10, keep_checkpoint_max=100,
+                                    save_checkpoints_secs=SAVE_EVERY, session_config=sess_config)
     mdl = estimator_def(train_params, config=config)
-    # evaluator = tf.contrib.estimator.InMemoryEvaluatorHook(estimator=mdl, input_fn=eval_input_fn)
-    mdl.train(train_input_fn)
 
+    # if FLAGS.do_train:
+    #     print('TRAINING MODE ...\n')
+    #     mdl.train(train_input_fn)
+    # elif FLAGS.do_eval:
+    #     print('EVAL MODE ...\n')
+    #     try:
+    #         while True:
+    #             mdl.evaluate(eval_input_fn)
+    #             time.sleep(SAVE_EVERY)
+    #     except KeyboardInterrupt:
+    #         print('Exiting validation ...')
 
-# def manual_train():
-#     optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
-#     next = train_input_fn()
-#     next_eval = eval_input_fn()
-#     with tf.variable_scope('model'):
-#         model = rnn_model.RnnModel(lstm_size_list=FLAGS.lstm_size_list, n_classes=FLAGS.n_classes,
-#                                    vocab_size=25, learning_rate=FLAGS.lr,
-#                                    max_size=FLAGS.max_len, embed_dim=10, dropout_keep_p=FLAGS.dropout_keep_p,
-#                                    optimizer=optimizer)
-#     opt = model.optimize
-#
-#     loss_summ = tf.summary.scalar('loss', model.loss)
-#     acc_summ = tf.summary.scalar('accuracy', model.acc)
-#     tf.summary.histogram('predictions', tf.argmax(model.logits, 1))
-#     merger = tf.summary.merge_all()
-#     step = tf.train.get_or_create_global_step(graph=None)
-#     increment_op = tf.assign(step, step+1)
-#     logtensors = {
-#         "step": tf.train.get_or_create_global_step(), "train_loss": model.loss, "train_acc": model.acc
-#     }
-#
-#     hks = [
-#         tf.train.SummarySaverHook(
-#             save_steps=500,
-#             summary_op=merger,
-#             output_dir=os.path.join(FLAGS.log_dir, 'summaries')
-#         ),
-#         tf.train.CheckpointSaverHook(
-#             FLAGS.log_dir,
-#             save_secs=60 * 10
-#         ),
-#         tf.train.LoggingTensorHook(
-#             logtensors,
-#             every_n_iter=1,
-#         )
-#     ]
-#     with tf.train.MonitoredTrainingSession(hooks=hks, checkpoint_dir=FLAGS.log_dir) as sess:
-#         train_handle = sess.run(next.string_handle())
-#         sentence_len, tokens, pssm_li, n_features_pssm, label = train_handle
-#         eval_handle = sess.run(next_eval.string_handle())
-#         sentence_len_eval, tokens_eval, pssm_li_eval, n_features_pssm_eval, label_eval = eval_handle
-#
-#         sess.run(next.initializer)
-#         while not sess.should_stop():
-#             _, step_val = sess.run([opt, increment_op], feed_dict={model.input: tokens,
-#                                                          model.pssm_input: pssm_li,
-#                                                          model.labels: label})
-
-
-# if __name__ == '__main__':
-#     manual_train()
+    train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=1000)
+    eval_spec = tf.estimator.EvalSpec(input_fn=eval_input_fn, start_delay_secs=30, throttle_secs=60)
+    tf.estimator.train_and_evaluate(mdl, train_spec, eval_spec)

@@ -46,41 +46,20 @@ class RnnModel:
         # h = embed
         h = tf.concat([embed, aa_static_feat, pssm_mat], axis=2)
 
-        h = tf.layers.conv1d(h, filters=100, kernel_size=3, activation=tf.nn.relu, padding='same')
+        h = tf.layers.conv1d(h, filters=self.conv_n_filters, kernel_size=3, activation=tf.nn.relu, padding='same')
         h = tf.layers.dropout(h, rate=self.dropout_keep_p)
-        # cells = []
-        # for sz in lstm_size_list:
-        #     rnn = self.cell_fn(num_units=sz)
-        #     # cells.append(rnn)
-        #     # rnn = tf.nn.rnn_cell.DropoutWrapper(cell=rnn, output_keep_prob=dropout_keep_p)
-        #     cells.append(rnn)
-        # multi_rnn_cell = tf.nn.rnn_cell.MultiRNNCell(cells)
-        # outputs, state = tf.nn.dynamic_rnn(cell=multi_rnn_cell,
-        #                                    inputs=h,
-        #                                    dtype=tf.float32)
-        # last_output = outputs[:, -1, :]
 
-        # last_output = state[-1]
-        # last_output = last_output.h
+        # fw_lstm = self.cell_fn(num_units=self.lstm_size)
+        # bw_lstm = self.cell_fn(num_units=self.lstm_size)
+        # outputs, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm, bw_lstm, h, dtype=tf.float32)
+        # outputs = tf.concat(outputs, 2)
 
-        fw_lstm = self.cell_fn(num_units=self.lstm_size)
-        bw_lstm = self.cell_fn(num_units=self.lstm_size)
-
-        # fw_initial_state = tf.zeros(shape=())
-        # bw_initial_state =
-
-        outputs, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm, bw_lstm, h, dtype=tf.float32)
-        outputs = tf.concat(outputs, 2)
+        outputs, state = tf.contrib.cudnn_rnn.CudnnLSTM(num_layers=1, num_units=128, direction='bidirectional')(h)
 
         # last_output = outputs[:, -1, :]
         attention = tf.layers.Dense(1)(outputs)
         attention = tf.squeeze(attention, axis=2)
         attention = tf.nn.softmax(attention, axis=1)
-
-        # outputs = tf.transpose(outputs, perm=[0, 2, 1])
-        # last_output = tf.multiply(outputs, attention)
-        # last_output = tf.transpose(last_output, perm=[0, 2, 1])
-
         attention = tf.tile(tf.expand_dims(attention, axis=2), multiples=[1, 1, 2*self.lstm_size])
         last_output = tf.multiply(outputs, attention)
 
@@ -94,8 +73,16 @@ class RnnModel:
         self.gradient_loss = tf.gradients(self.loss, embed)[0]
 
         self.probabilities = tf.nn.softmax(logits=self.logits)
-        acc, acc_op = tf.metrics.accuracy(self.labels, tf.argmax(self.probabilities, 1))
+        print(self.labels)
+
+        label_v = tf.cast(self.labels, dtype=tf.int32)
+        pred_v = tf.argmax(self.probabilities, 1, output_type=tf.int32)
+        acc, acc_op = tf.metrics.accuracy(label_v, pred_v)
         self.acc = acc, acc_op
+
+        auc, auc_op = tf.metrics.auc(self.labels, self.probabilities[:, 1])
+        # auc, auc_op = tf.metrics.auc(one_hot, self.probabilities)
+        self.auc = auc, auc_op
 
         self.optimizer = optimizer.minimize(self.loss, global_step=tf.train.get_global_step())
         self.init_op = tf.initialize_all_variables()
