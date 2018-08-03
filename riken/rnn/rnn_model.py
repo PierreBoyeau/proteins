@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from riken.prot_features import prot_features
+from riken.prot_features.prot_features import chars
 
 PSSM_DIM = None
 
@@ -29,8 +30,8 @@ class RnnModel:
             raise ValueError
 
         one_hot = tf.one_hot(self.labels, self.n_classes)
-        embed = tf.one_hot(self.input, depth=self.n_classes)
 
+        embed = tf.one_hot(self.input, depth=len(chars))
         static_feat_mat = tf.Variable(
             # initial_value=prot_features.create_blosom_80_mat(),
             initial_value=prot_features.create_overall_static_aa_mat(normalize=True),
@@ -72,20 +73,18 @@ class RnnModel:
         outputs = tf.concat(outputs, 2)
 
         # last_output = outputs[:, -1, :]
-        attention = tf.layers.Dense(1, activation=None)(outputs)
+        attention = tf.layers.Dense(1, activation=tf.nn.tanh)(outputs)  # TODO: confirm that tanh is the best activation
         attention = tf.squeeze(attention, axis=2)
         attention = tf.nn.softmax(attention, axis=1)
 
         outputs = tf.transpose(outputs, perm=[0, 2, 1])
-        print(outputs)
         last_output = tf.multiply(outputs, attention)
-        print(last_output)
         last_output = tf.transpose(last_output, perm=[0, 2, 1])
         last_output = tf.reduce_sum(last_output, axis=1)
-        print(last_output)
         # last_output = tf.tensordot(outputs, attention, axes=1)
 
         final = tf.layers.dense(last_output, self.n_classes, activation=None)
+        print(final)
         self.logits = final
         self.loss = tf.losses.softmax_cross_entropy(onehot_labels=one_hot, logits=self.logits)
         self.gradient_loss = tf.gradients(self.loss, embed)[0]

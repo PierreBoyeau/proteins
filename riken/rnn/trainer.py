@@ -90,7 +90,7 @@ def eval_input_fn():
 #     print(it)
 #     val = sess.run(nxt)
 
-def estimator_def(parameters):
+def estimator_def(parameters, config):
     def model_fn(features, labels, mode=None, params=None, config=None):
         model = rnn_model.RnnModel(input=features['tokens'], pssm_input=features['pssm_li'],
                                    labels=labels, **params)
@@ -104,22 +104,24 @@ def estimator_def(parameters):
         # Create training op.
         assert mode == tf.estimator.ModeKeys.TRAIN
         train_op = model.optimize
-        hooks = [tf.train.LoggingTensorHook({'loss': model.loss}, every_n_iter=5)]
 
-        return tf.estimator.EstimatorSpec(mode, loss=model.loss, train_op=train_op, training_hooks=hooks)
+        # hooks = [tf.train.LoggingTensorHook({'loss': model.loss}, every_n_iter=5)]
+        return tf.estimator.EstimatorSpec(mode, loss=model.loss, train_op=train_op,
+                                          # training_hooks=hooks
+                                          )
 
     return tf.estimator.Estimator(model_fn=model_fn,
-                                  params=parameters)
+                                  params=parameters, config=config)
 
 
 if __name__ == '__main__':
     tf.logging.set_verbosity(tf.logging.INFO)
 
-    mdl = estimator_def(train_params)
-
+    config = tf.estimator.RunConfig(model_dir=FLAGS.log_dir, log_step_count_steps=10, keep_checkpoint_max=100)
+    mdl = estimator_def(train_params, config=config)
     # evaluator = tf.contrib.estimator.InMemoryEvaluatorHook(estimator=mdl, input_fn=eval_input_fn)
-    mdl.train(train_input_fn,
-              )
+    mdl.train(train_input_fn)
+
 
 # def manual_train():
 #     optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
