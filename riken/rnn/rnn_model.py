@@ -32,19 +32,22 @@ class RnnModel:
         one_hot = tf.one_hot(self.labels, self.n_classes)
         embed = tf.one_hot(self.input, depth=self.n_classes)
 
-        blosom = tf.Variable(initial_value=prot_features.create_blosom_80_mat(),
-                             dtype=tf.float32, trainable=False)
+        static_feat_mat = tf.Variable(
+            # initial_value=prot_features.create_blosom_80_mat(),
+            initial_value=prot_features.create_overall_static_aa_mat(normalize=True),
+            dtype=tf.float32, trainable=False)
+
         inputs_replace_m1 = tf.nn.relu(self.input)  # Create indexes where -1 values (fill) are replaced by 0
-        blosom_feat = tf.nn.embedding_lookup(params=blosom, ids=inputs_replace_m1)
+        aa_static_feat = tf.nn.embedding_lookup(params=static_feat_mat, ids=inputs_replace_m1)
 
         pssm_mat = tf.reshape(self.pssm_input, shape=[None, self.max_size, PSSM_DIM])
 
         # h = embed
-        h = tf.concat([embed, blosom_feat, pssm_mat])
+        h = tf.concat([embed, aa_static_feat, pssm_mat])
 
         h = tf.layers.conv1d(h, filters=100, kernel_size=3, activation=tf.nn.relu)
         h = tf.layers.dropout(h, rate=self.dropout_keep_p)
-        cells = []
+        # cells = []
         # for sz in lstm_size_list:
         #     rnn = self.cell_fn(num_units=sz)
         #     # cells.append(rnn)
@@ -63,7 +66,14 @@ class RnnModel:
         bw_lstm = self.cell_fn(num_units=self.lstm_size)
         outputs, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm, bw_lstm, h)
         outputs = tf.concat(outputs, 2)
-        last_output = outputs[:, -1, :]
+
+
+        # last_output = outputs[:, -1, :]
+        attention = tf.layers.Dense(1, activation=None)(outputs)
+        attention = tf.squeeze(attention)
+        attention = tf.nn.softmax(attention, axis=1)
+
+        last_output = tf.multiply(attention, outputs)
 
         final = tf.layers.dense(last_output, self.n_classes, activation=None)
         self.logits = final
