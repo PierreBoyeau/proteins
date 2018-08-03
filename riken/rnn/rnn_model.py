@@ -73,13 +73,17 @@ class RnnModel:
         outputs = tf.concat(outputs, 2)
 
         # last_output = outputs[:, -1, :]
-        attention = tf.layers.Dense(1, activation=tf.nn.tanh)(outputs)  # TODO: confirm that tanh is the best activation
+        attention = tf.layers.Dense(1)(outputs)
         attention = tf.squeeze(attention, axis=2)
         attention = tf.nn.softmax(attention, axis=1)
 
-        outputs = tf.transpose(outputs, perm=[0, 2, 1])
+        # outputs = tf.transpose(outputs, perm=[0, 2, 1])
+        # last_output = tf.multiply(outputs, attention)
+        # last_output = tf.transpose(last_output, perm=[0, 2, 1])
+
+        attention = tf.tile(tf.expand_dims(attention, axis=2), multiples=[1, 1, 2*self.lstm_size])
         last_output = tf.multiply(outputs, attention)
-        last_output = tf.transpose(last_output, perm=[0, 2, 1])
+
         last_output = tf.reduce_sum(last_output, axis=1)
         # last_output = tf.tensordot(outputs, attention, axes=1)
 

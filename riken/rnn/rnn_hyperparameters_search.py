@@ -177,7 +177,7 @@ def rnn_model_attention(n_classes):
     h = Dropout(rate=0.5)(h)
     h = Bidirectional(CuDNNLSTM(100, return_sequences=True))(h)
 
-    attention = Dense(1, activation='tanh')(h)  # TODO: confirm that tanh best activation
+    attention = Dense(1)(h)
     attention = Lambda(lambda x: K.squeeze(x, axis=2))(attention)
     attention = Activation(activation='softmax')(attention)
     attention = RepeatVector(200)(attention)
