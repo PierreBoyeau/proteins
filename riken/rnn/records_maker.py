@@ -67,40 +67,43 @@ def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swi
     sequences, y, indices = my_df['sequences'].values, my_df[y_tag].astype('category'), my_df.index.values
     writer = tf.python_io.TFRecordWriter(record_path)
     for sen, label_id, id in zip(tqdm(sequences), y.cat.codes, indices):
-        # print(sen)
-        pssm_path = pssm_format_fi.format(id)
-        pssm = pd.read_csv(pssm_path, sep=' ', skiprows=2, skipfooter=6, skipinitialspace=True)\
-            .reset_index(level=[2, 3])
-        pssm_feat = pssm.iloc[:MAX_LEN].values
-        seq_len, n_features_pssm = pssm_feat.shape
-        # print(n_features_pssm)
-        pssm_mat = np.zeros(shape=(MAX_LEN, n_features_pssm))
-        pssm_mat[-seq_len:] = pssm_feat
-        pssm_mat = pssm_mat.reshape(-1)
-        if np.isnan(pssm_mat).any():
-            print('issue')
-        # print(pssm_mat)
+        try:
+            # print(sen)
+            pssm_path = pssm_format_fi.format(id)
+            pssm = pd.read_csv(pssm_path, sep=' ', skiprows=2, skipfooter=6, skipinitialspace=True)\
+                .reset_index(level=[2, 3])
+            pssm_feat = pssm.iloc[:MAX_LEN].values
+            seq_len, n_features_pssm = pssm_feat.shape
+            # print(n_features_pssm)
+            pssm_mat = np.zeros(shape=(MAX_LEN, n_features_pssm))
+            pssm_mat[-seq_len:] = pssm_feat
+            pssm_mat = pssm_mat.reshape(-1)
+            if np.isnan(pssm_mat).any():
+                print('issue')
+            # print(pssm_mat)
 
-        # if seq_len != len(sen):
-        #     print('Inconsistency for protein id : {}'.format(id))
-        #     print(sen)
-        #     print(pssm.index.values)
+            # if seq_len != len(sen):
+            #     print('Inconsistency for protein id : {}'.format(id))
+            #     print(sen)
+            #     print(pssm.index.values)
 
-        tokens = [char for char in sen]
-        tokens = np.array([safe_char_to_idx(char) for char in tokens])
-        padded_tokens = pad_sequences(tokens.reshape(1, -1), maxlen=MAX_LEN, value=VALUE).reshape(-1)
-        # padded_blosum_feat = get_feat(padded_tokens)
-        feature = {
-            'sentence_len': _int64_feature([len(sen)]),
-            # 'sentence': _byte_feature(str.encode(sen)),
-            'tokens': _int64_feature(padded_tokens),
-            'pssm_li': _float_feature(pssm_mat),
-            'n_features_pssm': _int64_feature([n_features_pssm]),
-            # 'blosum_feat': _float_feature(padded_blosum_feat),
-            'label': _int64_feature([label_id])
-        }
-        example = tf.train.Example(features=tf.train.Features(feature=feature))
-        writer.write(example.SerializeToString())
+            tokens = [char for char in sen]
+            tokens = np.array([safe_char_to_idx(char) for char in tokens])
+            padded_tokens = pad_sequences(tokens.reshape(1, -1), maxlen=MAX_LEN, value=VALUE).reshape(-1)
+            # padded_blosum_feat = get_feat(padded_tokens)
+            feature = {
+                'sentence_len': _int64_feature([len(sen)]),
+                # 'sentence': _byte_feature(str.encode(sen)),
+                'tokens': _int64_feature(padded_tokens),
+                'pssm_li': _float_feature(pssm_mat),
+                'n_features_pssm': _int64_feature([n_features_pssm]),
+                # 'blosum_feat': _float_feature(padded_blosum_feat),
+                'label': _int64_feature([label_id])
+            }
+            example = tf.train.Example(features=tf.train.Features(feature=feature))
+            writer.write(example.SerializeToString())
+        except FileNotFoundError:
+            print('{} does not exist'.format(pssm_path))
     writer.close()
 
 
@@ -111,14 +114,18 @@ if __name__ == '__main__':
 
     train_records_filename = FLAGS.train_path
     val_records_filename = FLAGS.val_path
-    data_path = '/home/pierre/riken/data/riken_data/complete_from_xlsx.tsv'
-    # data_path = '/home/pierre/riken/data/swiss/swiss_with_clans.tsv'
+    # data_path = '/home/pierre/riken/data/riken_data/complete_from_xlsx.tsv'
+    # pssm_format_file = '../../data/psiblast/riken_data/{}_pssm.txt'
+    # y_name = 'is_allergenic'
+    # group_name = 'species'
+
+    data_path = '/home/pierre/riken/data/swiss/swiss_with_clans.tsv'
     pssm_format_file = '../../data/psiblast/swiss/{}_pssm.txt'
-    y_name = 'is_allergenic'
-    group_name = 'species'
+    y_name = 'clan'
+    group_name = None
 
     df = pd.read_csv(data_path, sep='\t').dropna()
-    # df.loc[:, 'sequences'] = df.sequences_x
+    df.loc[:, 'sequences'] = df.sequences_x
 
     if group_name is None:
         train_df, val_df = train_test_split(df, random_state=RANDOM_STATE, test_size=0.2)
@@ -133,4 +140,4 @@ if __name__ == '__main__':
     # Writing Val data
     write_record(val_df, val_records_filename, y_tag=y_name, pssm_format_fi=pssm_format_file)
 
-    print('Nb classes: ', len(np.unique(df)))
+    print('Nb classes: ', len(df[y_name].unique()))
