@@ -1,7 +1,9 @@
 import tensorflow as tf
+from tensorboard.plugins.beholder import BeholderHook
 
+from riken.nn_utils.io import train_input_fn, eval_input_fn
 from riken.rnn import rnn_model
-import time
+
 """
 python trainer.py \
 -train_path ./records/swiss_train_data500.tfrecords \
@@ -9,6 +11,10 @@ python trainer.py \
 -log_dir ./swisstrain_psiblast_1 \
 -lr 1e-3 \
 -n_classes 590 \
+
+
+python trainer.py -train_path ./records/train_riken_data.tfrecords -val_path ./records/test_riken_data.tfrecords \
+-log_dir ./test3 -lr 1e-3
 
 """
 
@@ -40,55 +46,19 @@ pssm_nb_examples = 42
 train_params = {'lstm_size': 128,
                 'n_classes': FLAGS.n_classes,
                 'max_size': 500,
-                'dropout_keep_p': 0.3,
+                'dropout_keep_p': 0.5,
                 'optimizer': tf.train.AdamOptimizer(learning_rate=FLAGS.lr),
                 'conv_n_filters': 100}
 
 
-def _parse_function(example_proto):
-    features = {
-        'sentence_len': tf.FixedLenFeature((), tf.int64, default_value=0),
-        'tokens': tf.FixedLenFeature([train_params['max_size']], tf.int64),
-        # 'pssm_li': tf.FixedLenFeature([train_params['max_size']*42], tf.float32,
-        #                               default_value=0),
-        # 'pssm_li': tf.VarLenFeature(tf.float32),
-        'pssm_li': tf.FixedLenFeature((train_params['max_size']*pssm_nb_examples), tf.float32),
-        'n_features_pssm': tf.FixedLenFeature((), tf.int64, default_value=0),
-        'label': tf.FixedLenFeature((), tf.int64, default_value=0)
-    }
-    parsed_features = tf.parse_single_example(example_proto, features)
-    parsed_features['pssm_li'] = tf.reshape(parsed_features['pssm_li'],
-                                            shape=(train_params['max_size'], pssm_nb_examples))
-    labels = parsed_features.pop('label')
-    return parsed_features, labels
-
-
-def input_fn(path, epochs):
-    dataset = tf.data.TFRecordDataset(path)
-    dataset = dataset.map(_parse_function)
-    dataset = dataset.shuffle(buffer_size=10000)
-    dataset = dataset.repeat(count=epochs)
-    batched_dataset = dataset.batch(batch_size=FLAGS.batch_size)
-    iterator = batched_dataset.make_one_shot_iterator()
-    nxt = iterator.get_next()
-    return nxt
-
-
-def train_input_fn():
-    return input_fn(FLAGS.train_path, epochs=FLAGS.epochs)
-
-
-def eval_input_fn():
-    return input_fn(FLAGS.val_path, epochs=1)
-
-
 def model_fn(features, labels, mode=None, params=None, config=None):
-    model = rnn_model.RnnModel(input=features['tokens'], pssm_input=features['pssm_li'],
-                               labels=labels, **params)
+    print(features, labels)
+    model = rnn_model.RnnModel(input=features['tokens'], pssm_input=features['pssm_li'], labels=labels, **params)
     if mode == tf.estimator.ModeKeys.PREDICT:
         predictions = model.probabilities
         return tf.estimator.EstimatorSpec(mode, predictions=predictions)
 
+    model.build()
     if mode == tf.estimator.ModeKeys.EVAL:
         return tf.estimator.EstimatorSpec(
             mode, loss=model.loss, eval_metric_ops={'accuracy': model.acc, 'auc': model.auc})
@@ -105,11 +75,11 @@ def estimator_def(parameters, cfg):
                                   params=parameters, config=cfg)
 
 
-# def transfer_model(parameters, cfg, transfer_path):
-#     ws = tf.estimator.WarmStartSettings(ckpt_to_initialize_from=transfer_path,
-#                                         vars_to_warm_start=)
-#     return tf.estimator.Estimator(model_fn=model_fn,
-#                                   params=parameters, config=cfg, warm_start_from=ws)
+def transfer_model(parameters, cfg, transfer_path):
+    ws = tf.estimator.WarmStartSettings(ckpt_to_initialize_from=transfer_path,
+                                        vars_to_warm_start='.*transferable.*')
+    return tf.estimator.Estimator(model_fn=model_fn,
+                                  params=parameters, config=cfg, warm_start_from=ws)
 
 
 if __name__ == '__main__':
@@ -119,9 +89,12 @@ if __name__ == '__main__':
     sess_config.gpu_options.per_process_gpu_memory_fraction = 0.8
     config = tf.estimator.RunConfig(model_dir=FLAGS.log_dir, log_step_count_steps=10, keep_checkpoint_max=100,
                                     save_checkpoints_secs=SAVE_EVERY, session_config=sess_config)
-    mdl = estimator_def(train_params, cfg=config)
-    train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn)
-    eval_spec = tf.estimator.EvalSpec(input_fn=eval_input_fn, start_delay_secs=30, throttle_secs=60)
-    tf.estimator.train_and_evaluate(mdl, train_spec, eval_spec)
+    if FLAGS.transfer_path is None:
+        mdl = estimator_def(train_params, cfg=config)
+    else:
+        mdl = transfer_model(train_params, cfg=config, transfer_path=FLAGS.transfer_path)
 
-pat = '^(input$|core$)*'
+    beholder_hook = BeholderHook(FLAGS.log_dir)
+    train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn, hooks=[beholder_hook])
+    eval_spec = tf.estimator.EvalSpec(input_fn=eval_input_fn, start_delay_secs=30, throttle_secs=30)
+    tf.estimator.train_and_evaluate(mdl, train_spec, eval_spec)

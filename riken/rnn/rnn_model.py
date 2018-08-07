@@ -24,15 +24,15 @@ class RnnModel:
                     self.input = tf.placeholder(tf.int32, shape=[None, self.max_size])
                     self.pssm_input = tf.placeholder(tf.float32, shape=[None, self.max_size*PSSM_DIM])
                     self.labels = tf.placeholder(tf.int32, shape=[None, ])
-                elif (input is not None) and (pssm_input is not None) and (labels is not None):
+                elif (input is not None) and (pssm_input is not None):  # and (labels is not None):
                     self.input = input
                     self.pssm_input = pssm_input
                     self.labels = labels
                 else:
+                    print('input', input)
+                    print('pssm input', pssm_input)
+                    print('labels', labels)
                     raise ValueError
-
-                one_hot = tf.one_hot(self.labels, self.n_classes)
-
                 embed = tf.one_hot(self.input, depth=len(chars))
                 static_feat_mat = tf.Variable(
                     # initial_value=prot_features.create_blosom_80_mat(),
@@ -52,14 +52,16 @@ class RnnModel:
                 h = tf.layers.conv1d(h, filters=self.conv_n_filters, kernel_size=3, activation=tf.nn.relu, padding='same')
                 h = tf.layers.dropout(h, rate=self.dropout_keep_p)
 
-                # fw_lstm = self.cell_fn(num_units=self.lstm_size)
-                # bw_lstm = self.cell_fn(num_units=self.lstm_size)
-                # outputs, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm, bw_lstm, h, dtype=tf.float32)
-                # outputs = tf.concat(outputs, 2)
+                fw_lstm = self.cell_fn(num_units=self.lstm_size)
+                bw_lstm = self.cell_fn(num_units=self.lstm_size)
+                outputs, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm, bw_lstm, h, dtype=tf.float32)
+                outputs = tf.concat(outputs, 2)
 
-                outputs, state = tf.contrib.cudnn_rnn.CudnnLSTM(num_layers=1, num_units=128, direction='bidirectional')(h)
+                # BEWARE : looks like this function is TIME major!!
+                # h = tf.transpose(h, perm=[1, 0, 2], name='transpose_to_time_major')
+                # outputs, state = tf.contrib.cudnn_rnn.CudnnLSTM(num_layers=1, num_units=128, direction='bidirectional')(h)
+                # outputs = tf.transpose(outputs, perm=[1, 0, 2], name='transpose_to_batch_major')
 
-                # last_output = outputs[:, -1, :]
                 attention = tf.layers.Dense(1)(outputs)
                 attention = tf.squeeze(attention, axis=2)
                 attention = tf.nn.softmax(attention, axis=1)
@@ -67,29 +69,45 @@ class RnnModel:
                 last_output = tf.multiply(outputs, attention)
 
                 last_output = tf.reduce_sum(last_output, axis=1)
-                # last_output = tf.tensordot(outputs, attention, axes=1)
 
         with tf.variable_scope('dense'):
             final = tf.layers.dense(last_output, self.n_classes, activation=None)
-        print(final)
         self.logits = final
-        self.loss = tf.losses.softmax_cross_entropy(onehot_labels=one_hot, logits=self.logits)
-        self.gradient_loss = tf.gradients(self.loss, embed)[0]
-
         self.probabilities = tf.nn.softmax(logits=self.logits)
-        print(self.labels)
 
+        self.loss = None
+        self.acc = None
+        self.auc = None
+        self.optimizer_fn = optimizer
+        self.optimizer = None
+        self.init_op = None
+        # self.loss = tf.losses.softmax_cross_entropy(onehot_labels=self.labels_one_hot, logits=self.logits)
+        # self.gradient_loss = tf.gradients(self.loss, embed)[0]
+        # label_v = tf.cast(self.labels, dtype=tf.int32)
+        # pred_v = tf.argmax(self.probabilities, 1, output_type=tf.int32)
+        # acc, acc_op = tf.metrics.accuracy(label_v, pred_v)
+        # self.acc = acc, acc_op
+        #
+        # auc, auc_op = tf.metrics.auc(self.labels, self.probabilities[:, 1])
+        # # auc, auc_op = tf.metrics.auc(self.labels_one_hot, self.probabilities)
+        # self.auc = auc, auc_op
+        #
+        # self.optimizer = optimizer.minimize(self.loss, global_step=tf.train.get_global_step())
+        # self.init_op = tf.initialize_all_variables()
+
+    def build(self):
+        labels_one_hot = tf.one_hot(self.labels, self.n_classes)
+        self.loss = tf.losses.softmax_cross_entropy(onehot_labels=labels_one_hot, logits=self.logits)
         label_v = tf.cast(self.labels, dtype=tf.int32)
         pred_v = tf.argmax(self.probabilities, 1, output_type=tf.int32)
         acc, acc_op = tf.metrics.accuracy(label_v, pred_v)
         self.acc = acc, acc_op
 
         auc, auc_op = tf.metrics.auc(self.labels, self.probabilities[:, 1])
-        # auc, auc_op = tf.metrics.auc(one_hot, self.probabilities)
         self.auc = auc, auc_op
-
-        self.optimizer = optimizer.minimize(self.loss, global_step=tf.train.get_global_step())
+        self.optimizer = self.optimizer_fn.minimize(self.loss, global_step=tf.train.get_global_step())
         self.init_op = tf.initialize_all_variables()
+        return
 
     @property
     def optimize(self):

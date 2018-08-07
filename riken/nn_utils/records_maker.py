@@ -67,9 +67,8 @@ def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swi
     sequences, y, indices = my_df['sequences'].values, my_df[y_tag].astype('category'), my_df.index.values
     writer = tf.python_io.TFRecordWriter(record_path)
     for sen, label_id, id in zip(tqdm(sequences), y.cat.codes, indices):
+        pssm_path = pssm_format_fi.format(id)
         try:
-            # print(sen)
-            pssm_path = pssm_format_fi.format(id)
             pssm = pd.read_csv(pssm_path, sep=' ', skiprows=2, skipfooter=6, skipinitialspace=True)\
                 .reset_index(level=[2, 3])
             pssm_feat = pssm.iloc[:MAX_LEN].values
@@ -80,7 +79,6 @@ def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swi
             pssm_mat = pssm_mat.reshape(-1)
             if np.isnan(pssm_mat).any():
                 print('issue')
-            # print(pssm_mat)
 
             # if seq_len != len(sen):
             #     print('Inconsistency for protein id : {}'.format(id))
