@@ -1,8 +1,13 @@
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.metrics import roc_curve, roc_auc_score
+import gensim
 import matplotlib.pyplot as plt
 import numpy as np
-import gensim
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.metrics import roc_curve, roc_auc_score
+
+
+"""
+Useful functions for Word2Vec-based featurization
+"""
 
 
 class ProteinTokenizer(BaseEstimator, TransformerMixin):
@@ -19,7 +24,8 @@ class ProteinTokenizer(BaseEstimator, TransformerMixin):
     def transform(self, X, y=None):
         X_transformed = []
         for seq in X:
-            seq_tokens = [seq[self.token_size * idx:self.token_size * (idx + 1)] for idx in range(len(seq)//self.token_size)]
+            seq_tokens = [seq[self.token_size * idx:self.token_size * (idx + 1)]
+                          for idx in range(len(seq)//self.token_size)]
             X_transformed.append(seq_tokens)
         return X_transformed
 
@@ -29,7 +35,8 @@ class ProteinTokenizer(BaseEstimator, TransformerMixin):
 
 class ProteinW2VRepresentation(BaseEstimator, TransformerMixin):
     """
-    Takes as input tokens (ie pseudo words) e.g. [['AAA', 'TTT', 'CGT'], ...] and returns sentence vector representations
+    Takes as input tokens (ie pseudo words) e.g. [['AAA', 'TTT', 'CGT'], ...]
+    and returns sentence vector representations
     """
     def __init__(self, model_path, agg_mode='sum'):
         self.model_path = model_path
@@ -43,7 +50,8 @@ class ProteinW2VRepresentation(BaseEstimator, TransformerMixin):
     def transform(self, X, y=None):
         X_transformed = []
         for tokens_list in X:
-            w2v = np.array([self.model.wv[str(token)] for token in tokens_list if token in self.model.wv])
+            w2v = np.array([self.model.wv[str(token)] for token in tokens_list
+                            if token in self.model.wv])
             w2v = self.agg_fn(w2v)
             X_transformed.append(w2v)
         return np.array(X_transformed)
@@ -53,7 +61,14 @@ class ProteinW2VRepresentation(BaseEstimator, TransformerMixin):
 
 
 def roc_score(y_test, y_score, **ax_kws):
-    fpr, tpr, thresholds = roc_curve(y_test, y_score)
+    """
+    Plots roc auc curve
+    :param y_test:
+    :param y_score:
+    :param ax_kws:
+    :return:
+    """
+    fpr, tpr, _ = roc_curve(y_test, y_score)
     roc_auc_value = roc_auc_score(y_test, y_score)
     fig, ax = plt.subplots(**ax_kws)
 

@@ -11,7 +11,8 @@ def create_words(seq, size=3, return_list_of_words=True):
         if return_list_of_words:
             words = [seq_trunc[size*idx:size*(idx+1)] for idx in range(len(seq_trunc) // size)]
         else:
-            words = ' '.join([seq_trunc[size * idx:size * (idx + 1)] for idx in range(len(seq_trunc) // size)])
+            words = ' '.join([seq_trunc[size * idx:size * (idx + 1)]
+                              for idx in range(len(seq_trunc) // size)])
         sentences_res.append(words)
     return sentences_res
 
@@ -60,17 +61,3 @@ def get_batch_from_sentences(data, batch_size, num_skips, skip_window):
                       dtype=np.int32).reshape((batch_size, 1))
 
     return batch, labels
-
-
-if __name__ == "__main__":
-    filename = '/home/pierre/riken/data/swiss/uniprot-reviewed%3Ayes.fasta'
-    df = read_fasta(filename)
-    # df = df[:100]
-    data, dictionary = get_data_examples(df.sequences.tolist())
-    data = np.array(data)
-
-    # batch_size = 128
-    # batch, labels = get_batch_from_sentences(data, batch_size, num_skips=5, skip_window=5)
-
-    # data = [item for sentence in data for item in sentence]
-    # a = generate_batch_skipgram(data, batch_size=128, num_skips=16, skip_window=8)

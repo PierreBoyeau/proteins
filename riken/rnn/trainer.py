@@ -87,12 +87,13 @@ if __name__ == '__main__':
 
     sess_config = tf.ConfigProto()
     sess_config.gpu_options.per_process_gpu_memory_fraction = 0.8
-    config = tf.estimator.RunConfig(model_dir=FLAGS.log_dir, log_step_count_steps=10, keep_checkpoint_max=100,
-                                    save_checkpoints_secs=SAVE_EVERY, session_config=sess_config)
+    config_params = tf.estimator.RunConfig(model_dir=FLAGS.log_dir, log_step_count_steps=10,
+                                           keep_checkpoint_max=100, save_checkpoints_secs=SAVE_EVERY,
+                                           session_config=sess_config)
     if FLAGS.transfer_path is None:
-        mdl = estimator_def(train_params, cfg=config)
+        mdl = estimator_def(train_params, cfg=config_params)
     else:
-        mdl = transfer_model(train_params, cfg=config, transfer_path=FLAGS.transfer_path)
+        mdl = transfer_model(train_params, cfg=config_params, transfer_path=FLAGS.transfer_path)
 
     beholder_hook = BeholderHook(FLAGS.log_dir)
     train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn, hooks=[beholder_hook])
