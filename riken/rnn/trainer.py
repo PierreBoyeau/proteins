@@ -1,3 +1,4 @@
+from functools import partial
 import tensorflow as tf
 from tensorboard.plugins.beholder import BeholderHook
 
@@ -38,6 +39,8 @@ flags.DEFINE_string('log_dir', './results', 'Path to training records')
 flags.DEFINE_integer('epochs', 10, 'Number of epochs to train the model on')
 flags.DEFINE_integer('batch_size', 128, 'Number of epochs to train the model on')
 flags.DEFINE_float('lr', 1e-3, 'Maximum sequence lenght')
+flags.DEFINE_integer('max_size', 500, 'max size')
+
 FLAGS = flags.FLAGS
 
 SAVE_EVERY = 600
@@ -45,7 +48,7 @@ SAVE_EVERY = 600
 pssm_nb_examples = 42
 train_params = {'lstm_size': 128,
                 'n_classes': FLAGS.n_classes,
-                'max_size': 500,
+                'max_size': FLAGS.max_size,
                 'dropout_keep_p': 0.5,
                 'optimizer': tf.train.AdamOptimizer(learning_rate=FLAGS.lr),
                 'conv_n_filters': 100}
@@ -96,6 +99,11 @@ if __name__ == '__main__':
         mdl = transfer_model(train_params, cfg=config_params, transfer_path=FLAGS.transfer_path)
 
     beholder_hook = BeholderHook(FLAGS.log_dir)
-    train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn, hooks=[beholder_hook])
-    eval_spec = tf.estimator.EvalSpec(input_fn=eval_input_fn, start_delay_secs=30, throttle_secs=30)
+
+    my_train_fn = partial(train_input_fn, path=FLAGS.train_path, max_size=FLAGS.max_size,
+                          epochs=FLAGS.epochs, batch_size=FLAGS.batch_size)
+    train_spec = tf.estimator.TrainSpec(input_fn=my_train_fn, hooks=[beholder_hook])
+    my_eval_fn = partial(eval_input_fn, path=FLAGS.val_path, max_size=FLAGS.max_size,
+                         batch_size=FLAGS.batch_size)
+    eval_spec = tf.estimator.EvalSpec(input_fn=my_eval_fn, start_delay_secs=30, throttle_secs=600)
     tf.estimator.train_and_evaluate(mdl, train_spec, eval_spec)
