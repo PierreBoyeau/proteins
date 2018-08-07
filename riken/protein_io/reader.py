@@ -6,6 +6,10 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from tqdm import tqdm
 
+"""
+Functions to read data
+"""
+
 
 def read_fasta(filename):
     with open(filename) as fasta_file:  # Will close handle cleanly

@@ -4,6 +4,10 @@ from Bio.SubsMat import MatrixInfo
 import numpy as np
 import pandas as pd
 
+"""
+File that deals with assigning features to amino acids/proteins
+"""
+
 HYDROPATHS = {
     'A': 1.800,
     'R': -4.500,
@@ -41,6 +45,11 @@ aa_frequencies = {"Ala": 8.25, "Arg": 5.53, "Asn": 4.06, "Asp": 5.45, "Cys": 1.3
 
 
 def create_overall_static_aa_mat(normalize=True):
+    """
+    Returns a matrix with index [NULL, chars] composed of blosom features and aa chemical properties
+    :param normalize: Normalize data?
+    :return: matrix
+    """
     res_mat = np.concatenate([create_blosom_80_mat(), create_amino_acids_prop_mat()], axis=1)
     if normalize:
         res_mat = (res_mat - res_mat.mean(axis=0)) / res_mat.std(axis=0)
@@ -48,6 +57,10 @@ def create_overall_static_aa_mat(normalize=True):
 
 
 def create_blosom_80_mat():
+    """
+    https://en.wikipedia.org/wiki/BLOSUM
+    :return:
+    """
     blosom_80 = get_blosum80_dict_to_features()
     len_mat = len(blosom_80['A'])
     zeros = np.zeros(len_mat)
@@ -67,6 +80,12 @@ def create_amino_acids_prop_mat():
 
 
 def create_kidera_mat():
+    """
+    Kidera, Akinori, et al. "Statistical analysis of the physical properties of the 20 naturally occurring amino acids."
+    Journal of Protein Chemistry 4.1 (1985): 23-55.
+    Exported from https://rdrr.io/cran/Peptides/man/kideraFactors.html
+    :return:
+    """
     kidera_dict = get_kidera_dict_to_features()
     zeros = np.zeros(10)
     mat = [zeros]  # Value for 0 index
@@ -178,15 +197,3 @@ def len_proteins(seq):
 
 def filter_seq(seq):
     return ''.join([aa for aa in seq if aa in HYDROPATHS])
-
-
-if __name__ == '__main__':
-    seq = 'MAEGEITTFTALTEKFNLPPGNYKKPKLLYCSNGGHFLRILPDGTVDGT'
-    print(molecular_weight(seq))
-    print(aromaticity(seq))
-    print(instability_index(seq))
-    print(aliphatic_index(seq))
-    print(gravy(seq))
-    print(len_proteins(seq))
-
-    analysis = ProteinAnalysis(seq)

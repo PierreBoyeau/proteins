@@ -5,8 +5,8 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from keras.preprocessing.sequence import pad_sequences
 
-from riken.prot_features.prot_features import chars, chars_to_idx
-from riken.prot_features import prot_features
+from prot_features import chars, chars_to_idx
+import prot_features
 
 from riken.protein_io import data_op
 
@@ -15,6 +15,10 @@ flags = tf.flags
 MAX_LEN = 500
 RANDOM_STATE = 42
 VALUE = -1
+
+"""
+Script that can be use to WRITE tensorflow records
+"""
 
 
 def safe_char_to_idx(char):
@@ -64,6 +68,15 @@ def get_feat(int_seq_tokens):
 
 
 def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swiss/{}_pssm.txt'):
+    """
+    Main function to write tensorflow records
+
+    :param my_df: DataFrame containing sequences and labels
+    :param record_path: Where you want to save file
+    :param y_tag: tag of labels
+    :param pssm_format_fi: path where {} corresponds to the index of the protein
+    :return: 0
+    """
     sequences, y, indices = my_df['sequences'].values, my_df[y_tag].astype('category'), my_df.index.values
     writer = tf.python_io.TFRecordWriter(record_path)
     for sen, label_id, id in zip(tqdm(sequences), y.cat.codes, indices):
@@ -103,6 +116,7 @@ def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swi
         except FileNotFoundError:
             print('{} does not exist'.format(pssm_path))
     writer.close()
+    return 0
 
 
 if __name__ == '__main__':

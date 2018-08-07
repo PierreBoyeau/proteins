@@ -2,8 +2,19 @@ import tensorflow as tf
 
 from trainer import pssm_nb_examples, FLAGS
 
+"""
+Scripts useful to READ tensorflow records and to create tf.Dataset objects easily.
+"""
+
 
 def _parse_function(example_proto, params, pssm_nb_f=42):
+    """
+    Returns tensors to feed to tensorflow models
+    :param example_proto:
+    :param params: dict giving shapes of objects that need to be read
+    :param pssm_nb_f: number of PSSM features (42 if using PSIBLAST)
+    :return: features, labels
+    """
     features = {
         'sentence_len': tf.FixedLenFeature((), tf.int64, default_value=0),
         'tokens': tf.FixedLenFeature([params['max_size']], tf.int64),
@@ -22,6 +33,13 @@ def _parse_function(example_proto, params, pssm_nb_f=42):
 
 
 def input_fn(path, epochs, shuffle=True):
+    """
+    Create tf.Dataset object for training tf model
+    :param path: path to records
+    :param epochs: nb of epochs
+    :param shuffle: bool: should we shuffle
+    :return: iterator
+    """
     dataset = tf.data.TFRecordDataset(path)
     dataset = dataset.map(_parse_function)
     if shuffle:
