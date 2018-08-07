@@ -12,11 +12,7 @@ from keras.models import Model
 from keras.optimizers import Adam, SGD, RMSprop
 from keras.callbacks import TensorBoard, ModelCheckpoint
 
-from riken.prot_features import prot_features
-from riken.protein_io import data_op, reader, replacement_mat
-
-import tensorflow as tf
-from keras.backend.tensorflow_backend import set_session
+from riken.protein_io import data_op, reader, replacement_mat, prot_features
 
 """
 python rnn_hyperparameters_search.py \
@@ -223,13 +219,6 @@ def transfer_model(n_classes_new, mdl_path, prev_model_output_layer='lstm_2', fr
     return mdl
 
 
-def safe_char_to_idx(char):
-    if char in chars_to_idx:
-        return chars_to_idx[char]
-    else:
-        return 0
-
-
 def hyperp_search_and_train():
     grid = {
         'lr': [1e-2, 1e-3, 1e-4],
@@ -304,7 +293,7 @@ if __name__ == '__main__':
 
     sequences, y = df['sequences'].values, df[KEY_TO_PREDICT]
     y = pd.get_dummies(y).values
-    X = pad_sequences([[safe_char_to_idx(char) for char in sequence] for sequence in sequences], maxlen=MAXLEN)
+    X = pad_sequences([[prot_features.safe_char_to_idx(char) for char in sequence] for sequence in sequences], maxlen=MAXLEN)
     if GROUPS is None:
         groups = None
     else:

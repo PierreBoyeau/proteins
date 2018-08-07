@@ -5,10 +5,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from keras.preprocessing.sequence import pad_sequences
 
-from prot_features import chars, chars_to_idx
-import prot_features
-
-from riken.protein_io import data_op
+from riken.protein_io import prot_features, data_op
 
 flags = tf.flags
 
@@ -19,18 +16,6 @@ VALUE = -1
 """
 Script that can be use to WRITE tensorflow records
 """
-
-
-def safe_char_to_idx(char):
-    """
-    Use this function to safely get associated index linked to char
-    :param char:
-    :return:
-    """
-    if char in chars_to_idx:
-        return chars_to_idx[char]
-    else:
-        return
 
 
 def _int64_feature(value):
@@ -59,7 +44,7 @@ def get_feat(int_seq_tokens):
             feat = np.zeros(feat_len)
         else:
             try:
-                char = chars[ind - 1]
+                char = prot_features.chars[ind - 1]
                 feat = np.array(aa_to_feat[char])
             except KeyError:
                 feat = np.zeros(feat_len)
@@ -99,7 +84,7 @@ def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swi
             #     print(pssm.index.values)
 
             tokens = [char for char in sen]
-            tokens = np.array([safe_char_to_idx(char) for char in tokens])
+            tokens = np.array([prot_features.safe_char_to_idx(char) for char in tokens])
             padded_tokens = pad_sequences(tokens.reshape(1, -1), maxlen=MAX_LEN, value=VALUE).reshape(-1)
             # padded_blosum_feat = get_feat(padded_tokens)
             feature = {

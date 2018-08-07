@@ -1,7 +1,5 @@
 import tensorflow as tf
 
-from trainer import pssm_nb_examples, FLAGS
-
 """
 Scripts useful to READ tensorflow records and to create tf.Dataset objects easily.
 """
@@ -21,7 +19,7 @@ def _parse_function(example_proto, params, pssm_nb_f=42):
         # 'pssm_li': tf.FixedLenFeature([train_params['max_size']*42], tf.float32,
         #                               default_value=0),
         # 'pssm_li': tf.VarLenFeature(tf.float32),
-        'pssm_li': tf.FixedLenFeature((params['max_size']*pssm_nb_examples), tf.float32),
+        'pssm_li': tf.FixedLenFeature((params['max_size']*pssm_nb_f), tf.float32),
         'n_features_pssm': tf.FixedLenFeature((), tf.int64, default_value=0),
         'label': tf.FixedLenFeature((), tf.int64, default_value=0)
     }

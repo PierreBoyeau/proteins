@@ -1,7 +1,7 @@
 import tensorflow as tf
 
-from riken.prot_features import prot_features
-from riken.prot_features.prot_features import chars
+from riken.protein_io import prot_features
+from riken.protein_io.prot_features import chars
 
 PSSM_DIM = None
 

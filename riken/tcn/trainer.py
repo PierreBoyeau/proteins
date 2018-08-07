@@ -38,10 +38,11 @@ FLAGS = flags.FLAGS
 SAVE_EVERY = 600
 
 pssm_nb_examples = 42
-train_params = {'lstm_size': 128,
+train_params = {'depth': 5,
                 'n_classes': FLAGS.n_classes,
                 'max_size': 500,
-                'dropout_keep_p': 0.5,
+                'kernel_size': 7,
+                'dropout_rate': 0.5,
                 'optimizer': tf.train.AdamOptimizer(learning_rate=FLAGS.lr),
                 'n_filters': 100}
 

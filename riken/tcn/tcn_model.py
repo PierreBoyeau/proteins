@@ -1,5 +1,5 @@
 import tensorflow as tf
-import prot_features
+from riken.protein_io import prot_features
 
 
 class CausalConv1D(tf.layers.Conv1D):
