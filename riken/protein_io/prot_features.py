@@ -44,6 +44,18 @@ aa_frequencies = {"Ala": 8.25, "Arg": 5.53, "Asn": 4.06, "Asp": 5.45, "Cys": 1.3
                   "Pro": 4.70, "Ser": 6.56, "Thr": 5.34, "Trp": 1.08, "Tyr": 2.92, "Val": 6.87, }
 
 
+def safe_char_to_idx(char):
+    """
+    Use this function to safely get associated index linked to char
+    :param char:
+    :return:
+    """
+    if char in chars_to_idx:
+        return chars_to_idx[char]
+    else:
+        return
+
+
 def create_overall_static_aa_mat(normalize=True):
     """
     Returns a matrix with index [NULL, chars] composed of blosom features and aa chemical properties
