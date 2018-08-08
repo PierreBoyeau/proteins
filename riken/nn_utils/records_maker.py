@@ -62,9 +62,9 @@ def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swi
     :param pssm_format_fi: path where {} corresponds to the index of the protein
     :return: 0
     """
-    sequences, y, indices = my_df['sequences'].values, my_df[y_tag].astype('category'), my_df.index.values
+    sequences, y, indices = my_df['sequences'].values, my_df[y_tag].values, my_df.index.values
     writer = tf.python_io.TFRecordWriter(record_path)
-    for sen, label_id, id in zip(tqdm(sequences), y.cat.codes, indices):
+    for (sen, label_id, id) in zip(tqdm(sequences), y, indices):
         pssm_path = pssm_format_fi.format(id)
         try:
             pssm = pd.read_csv(pssm_path, sep=' ', skiprows=2, skipfooter=6, skipinitialspace=True)\
@@ -123,18 +123,22 @@ if __name__ == '__main__':
 
     df = pd.read_csv(data_path, sep='\t').dropna()
     df.loc[:, 'sequences'] = df.sequences_x
+    y_ind_name = y_name+'_ind'
+    label_indices, uniques = pd.factorize(df[y_name])
+    print('Number of distinct classes :', len(uniques))
+    df.loc[:, y_ind_name] = label_indices
 
     if group_name is None:
         train_df, val_df = train_test_split(df, random_state=RANDOM_STATE, test_size=0.2)
     else:
         df = df[df.seq_len >= 50]
-        train_inds, val_inds = data_op.group_shuffle_indices(df.sequences, df[y_name], df[group_name])
+        train_inds, val_inds = data_op.group_shuffle_indices(df.sequences,
+                                                             df[y_ind_name],
+                                                             df[group_name])
         print(train_inds.shape, val_inds)
         train_df, val_df = df.iloc[train_inds], df.iloc[val_inds]
 
     # Writing Train data
-    write_record(train_df, train_records_filename, y_tag=y_name, pssm_format_fi=pssm_format_file)
+    write_record(train_df, train_records_filename, y_ind_name, pssm_format_fi=pssm_format_file)
     # Writing Val data
-    write_record(val_df, val_records_filename, y_tag=y_name, pssm_format_fi=pssm_format_file)
-
-    print('Nb classes: ', len(df[y_name].unique()))
+    write_record(val_df, val_records_filename, y_ind_name, pssm_format_fi=pssm_format_file)
