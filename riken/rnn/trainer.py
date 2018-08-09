@@ -1,8 +1,9 @@
 from functools import partial
 import tensorflow as tf
+from tensorflow.python import debug as tf_debug
 from tensorboard.plugins.beholder import BeholderHook
 
-from riken.nn_utils.io import train_input_fn, eval_input_fn
+from riken.nn_utils.io_tools import train_input_fn, eval_input_fn
 from riken.rnn import rnn_model
 
 """
@@ -41,6 +42,8 @@ flags.DEFINE_integer('batch_size', 128, 'Number of epochs to train the model on'
 flags.DEFINE_float('lr', 1e-3, 'Maximum sequence lenght')
 flags.DEFINE_integer('max_size', 500, 'max size')
 
+flags.DEFINE_bool('debug', False, 'use debugger')
+
 FLAGS = flags.FLAGS
 
 SAVE_EVERY = 600
@@ -51,7 +54,8 @@ train_params = {'lstm_size': 128,
                 'max_size': FLAGS.max_size,
                 'dropout_keep_p': 0.5,
                 'optimizer': tf.train.AdamOptimizer(learning_rate=FLAGS.lr),
-                'conv_n_filters': 100}
+                'conv_n_filters': 100,
+                'two_lstm_layers': True}
 
 
 def model_fn(features, labels, mode=None, params=None, config=None):
@@ -98,12 +102,18 @@ if __name__ == '__main__':
     else:
         mdl = transfer_model(train_params, cfg=config_params, transfer_path=FLAGS.transfer_path)
 
-    beholder_hook = BeholderHook(FLAGS.log_dir)
+    # beholder_hook = BeholderHook(FLAGS.log_dir)
 
     my_train_fn = partial(train_input_fn, path=FLAGS.train_path, max_size=FLAGS.max_size,
                           epochs=FLAGS.epochs, batch_size=FLAGS.batch_size)
-    train_spec = tf.estimator.TrainSpec(input_fn=my_train_fn, hooks=[beholder_hook])
+    train_spec = tf.estimator.TrainSpec(input_fn=my_train_fn)
     my_eval_fn = partial(eval_input_fn, path=FLAGS.val_path, max_size=FLAGS.max_size,
                          batch_size=FLAGS.batch_size)
     eval_spec = tf.estimator.EvalSpec(input_fn=my_eval_fn, start_delay_secs=30, throttle_secs=600)
-    tf.estimator.train_and_evaluate(mdl, train_spec, eval_spec)
+
+    if FLAGS.debug:
+        debug_hk = tf_debug.TensorBoardDebugHook("griffin1:6009")
+        # mdl.train(my_train_fn, hooks=[debug_hk])
+        mdl.evaluate(my_eval_fn, hooks=[debug_hk])
+    else:
+        tf.estimator.train_and_evaluate(mdl, train_spec, eval_spec)

@@ -9,7 +9,7 @@ PSSM_DIM = None
 # TODO: Add chemical properties like in Keras model or at least an interface that allows to choose features easily
 class RnnModel:
     def __init__(self, lstm_size, n_classes, max_size, dropout_keep_p, optimizer, conv_n_filters,
-                 input=None, pssm_input=None, labels=None):
+                 two_lstm_layers=False, input=None, pssm_input=None, labels=None):
         self.n_classes = n_classes
         self.max_size = max_size
         self.lstm_size = lstm_size
@@ -17,6 +17,7 @@ class RnnModel:
         self.conv_n_filters = conv_n_filters
 
         self.cell_fn = tf.nn.rnn_cell.LSTMCell
+        self.two_lstm_layers = two_lstm_layers
 
         with tf.name_scope('transferable'):
             with tf.name_scope('input'):
@@ -56,6 +57,15 @@ class RnnModel:
                 bw_lstm = self.cell_fn(num_units=self.lstm_size)
                 outputs, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm, bw_lstm, h, dtype=tf.float32)
                 outputs = tf.concat(outputs, 2)
+                if self.two_lstm_layers:
+                    fw_lstm_2 = self.cell_fn(num_units=self.lstm_size)
+                    bw_lstm_2 = self.cell_fn(num_units=self.lstm_size)
+                    outputs_2, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm_2, bw_lstm_2, outputs,
+                                                                       dtype=tf.float32)
+                    outputs = tf.concat(outputs_2, 2)
+
+                outputs = tf.layers.dropout(outputs, rate=self.dropout_keep_p)
+
 
                 # BEWARE : looks like this function is TIME major!!
                 # h = tf.transpose(h, perm=[1, 0, 2], name='transpose_to_time_major')
