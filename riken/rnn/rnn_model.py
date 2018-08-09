@@ -55,13 +55,13 @@ class RnnModel:
 
                 fw_lstm = self.cell_fn(num_units=self.lstm_size)
                 bw_lstm = self.cell_fn(num_units=self.lstm_size)
-                outputs, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm, bw_lstm, h, dtype=tf.float32)
+                outputs, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm, bw_lstm, h, dtype=tf.float32, scope='BLSTM1')
                 outputs = tf.concat(outputs, 2)
                 if self.two_lstm_layers:
-                    fw_lstm_2 = self.cell_fn(num_units=self.lstm_size)
-                    bw_lstm_2 = self.cell_fn(num_units=self.lstm_size)
+                    fw_lstm_2 = self.cell_fn(num_units=self.lstm_size,)
+                    bw_lstm_2 = self.cell_fn(num_units=self.lstm_size,)
                     outputs_2, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm_2, bw_lstm_2, outputs,
-                                                                       dtype=tf.float32)
+                                                                       dtype=tf.float32, scope='BLSTM2')
                     outputs = tf.concat(outputs_2, 2)
 
                 outputs = tf.layers.dropout(outputs, rate=self.dropout_keep_p)
