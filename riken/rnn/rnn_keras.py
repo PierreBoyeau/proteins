@@ -219,32 +219,32 @@ def transfer_model(n_classes_new, mdl_path, prev_model_output_layer='lstm_2', fr
     return mdl
 
 
-def hyperp_search_and_train():
-    grid = {
-        'lr': [1e-2, 1e-3, 1e-4],
-        'optim': [Adam, RMSprop, SGD],
-        'kernel_initializer': ['glorot_normal', 'glorot_uniform'],
-        'dropout_rate': [0.0, 0.1, 0.3, 0.5]
-    }
-    from sklearn.model_selection import GridSearchCV
-    from keras.wrappers.scikit_learn import KerasClassifier
-    from sklearn.model_selection import StratifiedShuffleSplit
-    from sklearn.metrics import roc_auc_score, classification_report
-    mdl = KerasClassifier(transfer_model, mdl_path=TRANSFER_PATH, n_classes_new=y.shape[1],
-                          prev_model_output_layer=LAYER_NAME, freeze=TRANSFER_FREEZE, verbose=0)
-
-    cv = GridSearchCV(mdl, grid, scoring='roc_auc', cv=StratifiedShuffleSplit(n_splits=1, test_size=0.2),
-                      return_train_score=True, verbose=3)
-    cv.fit(Xtrain, ytrain)
-    pd.DataFrame(cv.cv_results_).to_csv('cv_results.tsv', sep='\t', index=False)
-    clf = cv.best_estimator_
-
-    file_content = '\nBest params: {}\nROC_AUC_SCORE : {}\n{}' \
-        .format(cv.best_params_,
-                roc_auc_score(ytest, clf.predict_proba(Xtest)[:, 1]),
-                classification_report(ytest, clf.predict(Xtest)))
-    with open('best_model_properties.txt', "w") as text_file:
-        text_file.write(file_content)
+# def hyperp_search_and_train():
+#     grid = {
+#         'lr': [1e-2, 1e-3, 1e-4],
+#         'optim': [Adam, RMSprop, SGD],
+#         'kernel_initializer': ['glorot_normal', 'glorot_uniform'],
+#         'dropout_rate': [0.0, 0.1, 0.3, 0.5]
+#     }
+#     from sklearn.model_selection import GridSearchCV
+#     from keras.wrappers.scikit_learn import KerasClassifier
+#     from sklearn.model_selection import StratifiedShuffleSplit
+#     from sklearn.metrics import roc_auc_score, classification_report
+#     mdl = KerasClassifier(transfer_model, mdl_path=TRANSFER_PATH, n_classes_new=y.shape[1],
+#                           prev_model_output_layer=LAYER_NAME, freeze=TRANSFER_FREEZE, verbose=0)
+#
+#     cv = GridSearchCV(mdl, grid, scoring='roc_auc', cv=StratifiedShuffleSplit(n_splits=1, test_size=0.2),
+#                       return_train_score=True, verbose=3)
+#     cv.fit(Xtrain, ytrain)
+#     pd.DataFrame(cv.cv_results_).to_csv('cv_results.tsv', sep='\t', index=False)
+#     clf = cv.best_estimator_
+#
+#     file_content = '\nBest params: {}\nROC_AUC_SCORE : {}\n{}' \
+#         .format(cv.best_params_,
+#                 roc_auc_score(ytest, clf.predict_proba(Xtest)[:, 1]),
+#                 classification_report(ytest, clf.predict(Xtest)))
+#     with open('best_model_properties.txt', "w") as text_file:
+#         text_file.write(file_content)
 
 
 if __name__ == '__main__':
@@ -315,11 +315,6 @@ if __name__ == '__main__':
     else:
         model = transfer_model(mdl_path=TRANSFER_PATH, n_classes_new=y.shape[1],
                                prev_model_output_layer=LAYER_NAME, freeze=TRANSFER_FREEZE, lr=LR)
-
-    if HYPERP_SEARCH:
-        print('PERFORMING HYPERPARAMETER SEARCH')
-        hyperp_search_and_train()
-        exit(0)
 
     print(model.summary())
 

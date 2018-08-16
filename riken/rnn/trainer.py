@@ -46,16 +46,16 @@ flags.DEFINE_bool('debug', False, 'use debugger')
 
 FLAGS = flags.FLAGS
 
-SAVE_EVERY = 600
+SAVE_EVERY = 60
 
 pssm_nb_examples = 42
-train_params = {'lstm_size': 128,
+train_params = {'lstm_size': 16,
                 'n_classes': FLAGS.n_classes,
                 'max_size': FLAGS.max_size,
                 'dropout_keep_p': 0.5,
                 'optimizer': tf.train.AdamOptimizer(learning_rate=FLAGS.lr),
-                'conv_n_filters': 100,
-                'two_lstm_layers': True}
+                'conv_n_filters': 50,
+                'two_lstm_layers': False}
 
 
 def model_fn(features, labels, mode=None, params=None, config=None):
@@ -109,7 +109,8 @@ if __name__ == '__main__':
     train_spec = tf.estimator.TrainSpec(input_fn=my_train_fn)
     my_eval_fn = partial(eval_input_fn, path=FLAGS.val_path, max_size=FLAGS.max_size,
                          batch_size=FLAGS.batch_size)
-    eval_spec = tf.estimator.EvalSpec(input_fn=my_eval_fn, start_delay_secs=30, throttle_secs=600)
+    eval_spec = tf.estimator.EvalSpec(input_fn=my_eval_fn, start_delay_secs=30,
+                                      throttle_secs=SAVE_EVERY)
 
     if FLAGS.debug:
         debug_hk = tf_debug.TensorBoardDebugHook("griffin1:6009")
