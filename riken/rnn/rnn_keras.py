@@ -15,7 +15,7 @@ from keras.callbacks import TensorBoard, ModelCheckpoint
 from riken.protein_io import data_op, reader, replacement_mat, prot_features
 
 """
-python rnn_hyperparameters_search.py \
+python rnn_keras.py \
 -max_len 500 \
 -lr 0.001 \
 -data_path /home/pierre/riken/data/swiss/swiss_with_clans.tsv \
@@ -25,7 +25,7 @@ python rnn_hyperparameters_search.py \
 
 
 
-python rnn_hyperparameters_search.py \
+python rnn_keras.py \
 -max_len 500 \
 -lr 0.001 \
 -data_path /home/pierre/riken/data/riken_data/complete_from_xlsx.tsv \
@@ -36,7 +36,7 @@ python rnn_hyperparameters_search.py \
 -transfer_path 
 
 
-python rnn_hyperparameters_search.py \
+python rnn_keras.py \
 -max_len 500 \
 -lr 0.001 \
 -data_path /home/pierre/riken/data/riken_data/complete_from_xlsx.tsv \
@@ -47,19 +47,12 @@ python rnn_hyperparameters_search.py \
 -transfer_path
 """
 
-# DATA_PATH = '/home/pierre/riken/data/riken_data/complete_from_xlsx.tsv'
-# KEY_TO_PREDICT = 'is_allergenic'
-# log_dir = './logs_transfer_group_shuffle'
-# TRANSFER_PATH = './logs_swisstrain_with_weights/weights.37-1.50.hdf5'
-# GROUPS = 'DO'
-
-chars = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N',
-         'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
-chars_to_idx = {char: idx+1 for (idx, char) in enumerate(chars)}
+chars = prot_features.chars
+chars_to_idx = prot_features.chars_to_idx
 n_chars = len(chars)
 
-STATIC_AA_TO_FEAT_M = prot_features.create_blosom_80_mat()
-# STATIC_AA_TO_FEAT_M = prot_features.create_overall_static_aa_mat(normalize=True)
+# STATIC_AA_TO_FEAT_M = prot_features.create_blosom_80_mat()
+STATIC_AA_TO_FEAT_M = prot_features.create_overall_static_aa_mat(normalize=True)
 # TODO: Ensure that new features (chemical properties of AA bring something to the model) via CV?
 
 ONEHOT_M = np.zeros((n_chars + 1, n_chars + 1))
@@ -142,22 +135,12 @@ def rnn_model_v2(n_classes):
     h = get_embeddings(aa_ind)
 
     h = Conv1D(100, kernel_size=3, activation='relu', padding='same')(h)
-    # conv_layers = []
-    # for kernel_size in [1, 3, 5]:
-    #     conv = Conv1D(20, kernel_size=kernel_size, activation='relu', padding='same')(h)
-    #     conv_layers.append(conv)
-    # conv_layers.append(Conv1D(20, kernel_size=7, activation='relu', padding='same')(h))
-    # conv_layers.append(Conv1D(20, kernel_size=9, activation='relu', padding='same')(h))
-    # h = Concatenate()(conv_layers)
-
     h = Dropout(rate=0.5)(h)
     h = Bidirectional(CuDNNLSTM(100, return_sequences=False))(h)
     h = Dense(n_classes, activation='softmax')(h)
     mdl = Model(inputs=aa_ind, outputs=h)
 
     optimizer = Adam(lr=LR)
-    # optimizer = SGD(lr=LR)
-
     mdl.compile(loss='categorical_crossentropy',
                 optimizer=optimizer,
                 metrics=['accuracy'])
