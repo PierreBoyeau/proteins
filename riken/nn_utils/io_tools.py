@@ -11,7 +11,7 @@ def _parse_function(example_proto, max_size, pssm_nb_f=42):
     :param example_proto:
     :param params: dict giving shapes of objects that need to be read
     :param pssm_nb_f: number of PSSM features (42 if using PSIBLAST)
-    :return: features, labels
+    :return: features, labels_li
     """
     features = {
         'sentence_len': tf.FixedLenFeature((), tf.int64, default_value=0),
@@ -30,7 +30,7 @@ def _parse_function(example_proto, max_size, pssm_nb_f=42):
     return parsed_features, labels
 
 
-def input_fn(path, max_size, epochs, batch_size, shuffle=True):
+def input_fn(path, max_size, epochs, batch_size, shuffle=True, drop_remainder=False):
     """
     Create tf.Dataset object for training tf model
     :param path: path to records
@@ -44,15 +44,20 @@ def input_fn(path, max_size, epochs, batch_size, shuffle=True):
     if shuffle:
         dataset = dataset.shuffle(buffer_size=10000)
     dataset = dataset.repeat(count=epochs)
-    batched_dataset = dataset.batch(batch_size=batch_size)
+    if drop_remainder:
+        batched_dataset = dataset.apply(tf.contrib.data.batch_and_drop_remainder(batch_size))
+    else:
+        batched_dataset = dataset.batch(batch_size=batch_size)
     iterator = batched_dataset.make_one_shot_iterator()
     nxt = iterator.get_next()
     return nxt
 
 
-def train_input_fn(path, max_size, epochs, batch_size):
-    return input_fn(path, max_size=max_size, batch_size=batch_size, epochs=epochs)
+def train_input_fn(path, max_size, epochs, batch_size, drop_remainder=False):
+    return input_fn(path, max_size=max_size, batch_size=batch_size, epochs=epochs,
+                    drop_remainder=drop_remainder)
 
 
-def eval_input_fn(path, max_size, batch_size):
-    return input_fn(path, max_size=max_size, batch_size=batch_size, epochs=1, shuffle=False)
+def eval_input_fn(path, max_size, batch_size, drop_remainder=False):
+    return input_fn(path, max_size=max_size, batch_size=batch_size, epochs=1, shuffle=False,
+                    drop_remainder=drop_remainder)
