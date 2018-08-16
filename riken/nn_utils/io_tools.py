@@ -44,10 +44,7 @@ def input_fn(path, max_size, epochs, batch_size, shuffle=True, drop_remainder=Fa
     if shuffle:
         dataset = dataset.shuffle(buffer_size=10000)
     dataset = dataset.repeat(count=epochs)
-    if drop_remainder:
-        batched_dataset = dataset.apply(tf.contrib.data.batch_and_drop_remainder(batch_size))
-    else:
-        batched_dataset = dataset.batch(batch_size=batch_size)
+    batched_dataset = dataset.batch(batch_size=batch_size, drop_remainder=drop_remainder)
     iterator = batched_dataset.make_one_shot_iterator()
     nxt = iterator.get_next()
     return nxt
