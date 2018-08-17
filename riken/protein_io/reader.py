@@ -56,7 +56,7 @@ def offline_data_augmentation(indices_sequences, labels, switch_matrix, nb_aug=1
     """
     Please refer to riken/riken/nn_utils/data_augmentation.py for more extensive explanation
     :param indices_sequences: list of int sequences
-    :param labels:  associated labels
+    :param labels:  associated labels_li
     :param switch_matrix: probability matrix used for augmentation
     :return: augmented_indices_sequences, augmented_labels
     """
