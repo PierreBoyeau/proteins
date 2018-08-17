@@ -4,43 +4,16 @@ from riken.nn_utils.io_tools import train_input_fn, eval_input_fn
 
 from riken.similarity_learning import similarity_model
 
-tf.logging.set_verbosity(tf.logging.INFO)
-flags = tf.flags
-flags.DEFINE_string('train_path',
-                    '/home/pierre/riken/riken/rnn/records/train_riken_data.tfrecords',
-                    'Path to training records')
-flags.DEFINE_string('val_path',
-                    '/home/pierre/riken/riken/rnn/records/test_riken_data.tfrecords',
-                    'Path to training records')
-
-flags.DEFINE_integer('n_classes', 590, 'Number of classes')
-flags.DEFINE_string('log_dir', './results', 'Path to training records')
-flags.DEFINE_integer('epochs', 10, 'Number of epochs to train the model on')
-flags.DEFINE_integer('batch_size', 128, 'Number of epochs to train the model on')
-flags.DEFINE_float('lr', 1e-3, 'Maximum sequence lenght')
-flags.DEFINE_integer('max_size', 500, 'max size')
-flags.DEFINE_integer('lstm_size', 4, 'max size')
-flags.DEFINE_float('margin', 1.0, 'Maximum sequence lenght')
-FLAGS = flags.FLAGS
-
-SAVE_EVERY = 60
-
-pssm_nb_examples = 42
-train_params = {'lstm_size': FLAGS.lstm_size,
-                'n_classes': FLAGS.n_classes,
-                'margin': FLAGS.margin,
-                # 'max_size': FLAGS.max_size,
-                'optimizer': tf.train.AdamOptimizer(learning_rate=FLAGS.lr),
-                'batch_size': FLAGS.batch_size
-                }
-
 
 def model_fn(features, labels, mode=None, params=None, config=None):
     print(features, labels)
-    model = similarity_model.SimilarityModel(inputs=features, labels=labels, **params)
     if mode == tf.estimator.ModeKeys.PREDICT:
-        raise ValueError
+        predict_model = similarity_model.SimilarityModel(inputs=features, labels=labels,
+                                                         predict=True, **params)
+        return tf.estimator.EstimatorSpec(mode,
+                                          predictions={"vectors": predict_model.vectors})
 
+    model = similarity_model.SimilarityModel(inputs=features, labels=labels, **params)
     model.build()
     if mode == tf.estimator.ModeKeys.EVAL:
         return tf.estimator.EstimatorSpec(mode, loss=model.loss)
@@ -63,9 +36,37 @@ def transfer_model(parameters, cfg, transfer_path):
 
 if __name__ == '__main__':
     tf.logging.set_verbosity(tf.logging.INFO)
+    flags = tf.flags
+    flags.DEFINE_string('train_path',
+                        '/home/pierre/riken/riken/rnn/records/train_riken_data.tfrecords',
+                        'Path to training records')
+    flags.DEFINE_string('val_path',
+                        '/home/pierre/riken/riken/rnn/records/test_riken_data.tfrecords',
+                        'Path to training records')
+
+    flags.DEFINE_integer('n_classes', 590, 'Number of classes')
+    flags.DEFINE_string('log_dir', './results', 'Path to training records')
+    flags.DEFINE_integer('epochs', 10, 'Number of epochs to train the model on')
+    flags.DEFINE_integer('batch_size', 128, 'Number of epochs to train the model on')
+    flags.DEFINE_float('lr', 1e-3, 'Maximum sequence lenght')
+    flags.DEFINE_integer('max_size', 500, 'max size')
+    flags.DEFINE_integer('lstm_size', 4, 'max size')
+    flags.DEFINE_float('margin', 1.0, 'Maximum sequence lenght')
+    FLAGS = flags.FLAGS
+
+    SAVE_EVERY = 60
+
+    pssm_nb_examples = 42
+    train_params = {'lstm_size': FLAGS.lstm_size,
+                    'n_classes': FLAGS.n_classes,
+                    'margin': FLAGS.margin,
+                    # 'max_size': FLAGS.max_size,
+                    'optimizer': tf.train.AdamOptimizer(learning_rate=FLAGS.lr),
+                    'batch_size': FLAGS.batch_size
+                    }
 
     sess_config = tf.ConfigProto()
-    sess_config.gpu_options.per_process_gpu_memory_fraction = 0.8
+    sess_config.gpu_options.per_process_gpu_memory_fraction = 0.45
     config_params = tf.estimator.RunConfig(model_dir=FLAGS.log_dir, log_step_count_steps=10,
                                            keep_checkpoint_max=100, save_checkpoints_secs=SAVE_EVERY,
                                            session_config=sess_config)
