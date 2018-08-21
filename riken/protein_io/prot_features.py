@@ -38,6 +38,9 @@ let1_to_let3 = {'A': 'Ala', 'R': 'Arg', 'N': 'Asn', 'D': 'Asp', 'C': 'Cys', 'E':
 chars = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N',
          'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 chars_to_idx = {char: idx + 1 for (idx, char) in enumerate(chars)}
+idx_to_char = {val:key for (key, val) in chars_to_idx.items()}
+idx_to_char[0] = ''
+
 
 aa_frequencies = {"Ala": 8.25, "Arg": 5.53, "Asn": 4.06, "Asp": 5.45, "Cys": 1.37, "Gln": 3.93, "Glu": 6.75,
                   "Gly": 7.07, "His": 2.27, "Ile": 5.96, "Leu": 9.66, "Lys": 5.84, "Met": 2.42, "Phe": 3.86,
@@ -59,14 +62,36 @@ def safe_char_to_idx(char):
 def create_overall_static_aa_mat(normalize=True):
     """
     Returns a matrix with index [NULL, chars] composed of blosom features and aa chemical properties
+
+    23 + 19
+
     :param normalize: Normalize data?
     :return: matrix
+
+
     """
     res_mat = np.concatenate([create_blosom_80_mat(), create_amino_acids_prop_mat()], axis=1)
     if normalize:
         res_mat = (res_mat - res_mat.mean(axis=0)) / res_mat.std(axis=0)
     return res_mat
 
+
+def create_overall_static_aa_mat_feature_selection(normalize=True):
+    """
+    Returns a matrix with index [NULL, chars] composed of blosom features and aa chemical properties
+
+    23 + 19 + 10
+
+    :param normalize: Normalize data?
+    :return: matrix
+
+
+    """
+    res_mat = np.concatenate([create_blosom_80_mat(), create_amino_acids_prop_mat(), create_kidera_mat()],
+                             axis=1)
+    if normalize:
+        res_mat = (res_mat - res_mat.mean(axis=0)) / res_mat.std(axis=0)
+    return res_mat
 
 def create_blosom_80_mat():
     """

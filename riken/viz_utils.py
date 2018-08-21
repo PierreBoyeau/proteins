@@ -34,5 +34,5 @@ def visualize_attention_2d(sequence, attention, ncols=50):
     heatmap_2d = to_2d_array(attention, ncols=ncols)
     nrows, ncols = heatmap_2d.shape
     str_2d = to_2d_array(sequence, ncols=ncols)
-    ax = sns.heatmap(data=heatmap_2d, annot=str_2d, fmt='')
+    ax = sns.heatmap(data=heatmap_2d, annot=str_2d, fmt='', xticklabels=False, yticklabels=False)
     return ax
