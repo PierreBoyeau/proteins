@@ -45,13 +45,16 @@ class CausalConv1D(tf.layers.Conv1D):
         return super(CausalConv1D, self).call(inputs)
 
 
-def residual_block(input, dilatation, kernel_size, n_filters, name, dropout_rate, do1conv=True):
-    conv = CausalConv1D(n_filters, kernel_size, dilation_rate=dilatation, activation=None)(input)
+def residual_block(input, dilatation, kernel_size, n_filters, name, dropout_rate, do1conv=True,
+                   kernel_initializer=None):
+    conv = CausalConv1D(n_filters, kernel_size, dilation_rate=dilatation, activation=None,
+                        kernel_initializer=kernel_initializer)(input)
     conv = tf.layers.batch_normalization(conv)
     conv = tf.nn.relu(conv)
     conv = tf.nn.dropout(conv, keep_prob=dropout_rate)
 
-    conv = CausalConv1D(n_filters, kernel_size, dilation_rate=dilatation, activation=None)(conv)
+    conv = CausalConv1D(n_filters, kernel_size, dilation_rate=dilatation, activation=None,
+                        kernel_initializer=kernel_initializer)(conv)
     conv = tf.layers.batch_normalization(conv)
     conv = tf.nn.relu(conv)
     conv = tf.nn.dropout(conv, keep_prob=dropout_rate)
@@ -65,13 +68,14 @@ def residual_block(input, dilatation, kernel_size, n_filters, name, dropout_rate
 
 class TCNModel:
     def __init__(self, n_classes, max_size, depth, kernel_size, n_filters, dropout_rate,
-                 optimizer, input=None, pssm_input=None, labels=None):
+                 optimizer, conv_initializer=None, input=None, pssm_input=None, labels=None):
         self.max_size = max_size
         self.depth = depth
         self.kernel_size = kernel_size
         self.n_filters = n_filters
         self.dropout_rate = dropout_rate
         self.n_classes = n_classes
+        self.conv_initializer = conv_initializer
 
         with tf.name_scope('transferable'):
             with tf.name_scope('input'):
@@ -79,14 +83,14 @@ class TCNModel:
                     self.input = tf.placeholder(tf.int32, shape=[None, self.max_size])
                     self.pssm_input = tf.placeholder(tf.float32, shape=[None, self.max_size * 42])
                     self.labels = tf.placeholder(tf.int32, shape=[None, ])
-                elif (input is not None) and (pssm_input is not None):  # and (labels is not None):
+                elif (input is not None) and (pssm_input is not None):  # and (labels_li is not None):
                     self.input = input
                     self.pssm_input = pssm_input
                     self.labels = labels
                 else:
                     print('input', input)
                     print('pssm input', pssm_input)
-                    print('labels', labels)
+                    print('labels_li', labels)
                     raise ValueError
                 embed = tf.one_hot(self.input, depth=len(prot_features.chars))
                 static_feat_mat = tf.Variable(
@@ -144,7 +148,8 @@ class TCNModel:
 
     def res_block(self, inputs, dilatation, do1conv, name):
         return residual_block(inputs, dilatation=dilatation, kernel_size=self.kernel_size, n_filters=self.n_filters,
-                              name=name, dropout_rate=self.dropout_rate, do1conv=do1conv)
+                              name=name, dropout_rate=self.dropout_rate, do1conv=do1conv,
+                              kernel_initializer=self.conv_initializer)
 
     @property
     def optimize(self):
