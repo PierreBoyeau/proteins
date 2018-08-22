@@ -35,7 +35,6 @@ def get_all_features(seq, y, indices, pssm_format_fi='../data/psiblast/swiss/{}_
     sequences_filtered = []
     y_filtered = []
     pssm_filtered = []
-    old_to_new_di = dict()
     for (sen, y_value, id) in zip(tqdm(seq), y, indices):
         pssm_path = pssm_format_fi.format(id)
         try:
@@ -44,19 +43,18 @@ def get_all_features(seq, y, indices, pssm_format_fi='../data/psiblast/swiss/{}_
             pssm_feat = pssm.iloc[:MAXLEN].values
             seq_len, n_features_pssm = pssm_feat.shape
             # print(n_features_pssm)
-            pssm_mat = np.zeros(shape=(MAXLEN, n_features_pssm))
+            pssm_mat = np.zeros(shape=(MAXLEN, 42))
             pssm_mat[-seq_len:] = pssm_feat
             if np.isnan(pssm_mat).any():
                 raise ValueError
 
-            old_to_new_di[id] = len(sequences_filtered)
-            sequences_filtered.append(sen)
-            y_filtered.append(y_value)
-            pssm_filtered.append(pssm_mat)
         except Exception as e:
             print(e)
             print('Error!')
-            pass
+            pssm_mat = np.zeros(shape=(MAXLEN, 42))
+        sequences_filtered.append(sen)
+        y_filtered.append(y_value)
+        pssm_filtered.append(pssm_mat)
     sequences_filtered = np.array(sequences_filtered)
     y_filtered = np.array(y_filtered)
     pssm_filtered = np.array(pssm_filtered)
@@ -64,7 +62,7 @@ def get_all_features(seq, y, indices, pssm_format_fi='../data/psiblast/swiss/{}_
     print(y_filtered.shape)
     print(pssm_filtered.shape)
     print('{} examples'.format(len(sequences_filtered)))
-    return sequences_filtered, pssm_filtered, y_filtered, old_to_new_di
+    return sequences_filtered, pssm_filtered, y_filtered
 
 
 def get_embeddings(inp):
@@ -186,7 +184,7 @@ if __name__ == '__main__':
     # FOR CONSISTENCY PURPOSES
     train_inds, test_inds = SPLITTER(sequences, y, groups)
 
-    X, pssm, y, old_to_new_indices = get_all_features(X, y, indices, pssm_format_fi=PSSM_FORMAT_FILE)
+    X, pssm, y = get_all_features(X, y, indices, pssm_format_fi=PSSM_FORMAT_FILE)
 
     def convert_indices(old_to_new_dic, indices):
         res_ind = []
@@ -195,8 +193,8 @@ if __name__ == '__main__':
                 res_ind.append(old_to_new_dic[ind])
         return np.array(res_ind)
 
-    train_inds = convert_indices(old_to_new_indices, train_inds)
-    test_inds = convert_indices(old_to_new_indices, test_inds)
+    # train_inds = convert_indices(old_to_new_indices, train_inds)
+    # test_inds = convert_indices(old_to_new_indices, test_inds)
     print(np.intersect1d(train_inds, test_inds))
     assert len(np.intersect1d(train_inds, test_inds)) == 0
     print(train_inds.shape, test_inds.shape)
