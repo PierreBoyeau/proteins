@@ -68,6 +68,10 @@ def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swi
         pssm_path = pssm_format_fi.format(id)
         try:
             pssm_mat = reader.get_pssm_mat(pssm_path, max_len=MAX_LEN)
+            pssm_mat = pssm_mat.reshape(-1)
+
+            if np.isnan(pssm_mat).any():
+                raise ValueError
             tokens = [char for char in sen]
             tokens = np.array([prot_features.safe_char_to_idx(char) for char in tokens])
             padded_tokens = pad_sequences(tokens.reshape(1, -1), maxlen=MAX_LEN, value=VALUE).reshape(-1)
