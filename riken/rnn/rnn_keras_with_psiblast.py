@@ -177,27 +177,19 @@ if __name__ == '__main__':
     y = pd.get_dummies(y).values
     X = pad_sequences([[prot_features.safe_char_to_idx(char) for char in sequence]
                        for sequence in sequences], maxlen=MAXLEN)
-    groups = None if GROUPS is None else df[GROUPS].values
     indices = df.index.values
 
-    # Get train test indices before getting all features (potentially less
-    # FOR CONSISTENCY PURPOSES
-    train_inds, test_inds = SPLITTER(sequences, y, groups)
+    if GROUPS == 'predefined':
+        train_inds, test_inds = np.where(df.is_train)[0], np.where(df.is_train == False)[0]
 
-    X, pssm, y = get_all_features(X, y, indices, pssm_format_fi=PSSM_FORMAT_FILE)
-
-    def convert_indices(old_to_new_dic, indices):
-        res_ind = []
-        for ind in indices:
-            if ind in old_to_new_dic:
-                res_ind.append(old_to_new_dic[ind])
-        return np.array(res_ind)
-
-    # train_inds = convert_indices(old_to_new_indices, train_inds)
-    # test_inds = convert_indices(old_to_new_indices, test_inds)
-    print(np.intersect1d(train_inds, test_inds))
+    else:
+        groups = None if GROUPS is None else df[GROUPS].values
+        train_inds, test_inds = SPLITTER(sequences, y, groups)
+    print('{} train examples and {} test examples'.format(len(train_inds), len(test_inds)))
     assert len(np.intersect1d(train_inds, test_inds)) == 0
     print(train_inds.shape, test_inds.shape)
+
+    X, pssm, y = get_all_features(X, y, indices, pssm_format_fi=PSSM_FORMAT_FILE)
     Xtrain, Xtest, ytrain, ytest = X[train_inds], X[test_inds], y[train_inds], y[test_inds]
     pssm_train, pssm_test = pssm[train_inds], pssm[test_inds]
 
