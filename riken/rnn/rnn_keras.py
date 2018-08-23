@@ -269,11 +269,6 @@ if __name__ == '__main__':
     df = pd.read_csv(DATA_PATH, sep='\t').dropna()
     df = df.loc[df.seq_len >= 50, :]
 
-    try:
-        df.loc[:, 'sequences'] = df.sequences_x
-    except AttributeError:
-        pass
-
     sequences, y = df['sequences'].values, df[KEY_TO_PREDICT]
     y = pd.get_dummies(y).values
     X = pad_sequences([[prot_features.safe_char_to_idx(char) for char in sequence] for sequence in sequences], maxlen=MAXLEN)

@@ -122,7 +122,6 @@ if __name__ == '__main__':
     group_name = None
 
     df = pd.read_csv(data_path, sep='\t').dropna()
-    df.loc[:, 'sequences'] = df.sequences_x
     y_ind_name = y_name+'_ind'
     label_indices, uniques = pd.factorize(df[y_name])
     print('Number of distinct classes :', len(uniques))
