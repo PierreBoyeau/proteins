@@ -137,7 +137,7 @@ if __name__ == '__main__':
 
     if group_name == 'predefined':
         train_df = df[df.is_train]
-        test_df = df[df.is_train is False]
+        test_df = df[df.is_train==False]
 
     if group_name is None:
         train_df, val_df = train_test_split(df, random_state=RANDOM_STATE, test_size=0.2)
