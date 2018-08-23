@@ -146,7 +146,7 @@ if __name__ == '__main__':
     flags.DEFINE_string('transfer_path', default=None, help='path to ckpt if doing transfer learning')
     flags.DEFINE_string('layer_name', default=None, help='Name of layer to use for transfer')
     flags.DEFINE_string('groups', default='NO', help='should we use groups')
-    flags.DEFINE_string('index_col', default=None, help='index_col in csv')
+    flags.DEFINE_integer('index_col', default=None, help='index_col in csv')
 
     FLAGS = flags.FLAGS
 
