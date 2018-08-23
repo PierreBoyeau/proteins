@@ -122,7 +122,7 @@ if __name__ == '__main__':
 
     if group_name == 'predefined':
         train_df = df[df.is_train]
-        test_df = df[df.is_train==False]
+        val_df = df[df.is_train==False]
 
     elif group_name is None:
         train_df, val_df = train_test_split(df, random_state=RANDOM_STATE, test_size=0.2)
@@ -134,7 +134,7 @@ if __name__ == '__main__':
         print(train_inds.shape, val_inds)
         train_df, val_df = df.iloc[train_inds], df.iloc[val_inds]
 
-    print('{} training examples and {} test examples'.format(len(train_df), len(test_df)))
+    print('{} training examples and {} test examples'.format(len(train_df), len(val_df)))
 
     # Writing Train data
     write_record(train_df, train_records_filename, y_ind_name, pssm_format_fi=pssm_format_file)
