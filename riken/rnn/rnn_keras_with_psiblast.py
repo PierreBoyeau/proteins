@@ -146,6 +146,7 @@ if __name__ == '__main__':
     flags.DEFINE_string('transfer_path', default=None, help='path to ckpt if doing transfer learning')
     flags.DEFINE_string('layer_name', default=None, help='Name of layer to use for transfer')
     flags.DEFINE_string('groups', default='NO', help='should we use groups')
+    flags.DEFINE_string('index_col', default=None, help='index_col in csv')
 
     FLAGS = flags.FLAGS
 
@@ -160,12 +161,13 @@ if __name__ == '__main__':
     GROUPS = FLAGS.groups if FLAGS.groups!='NO' else None
     SPLITTER = data_op.shuffle_indices if GROUPS is None else data_op.group_shuffle_indices
     PSSM_FORMAT_FILE = FLAGS.pssm_format_file
+    INDEX_COL = FLAGS.index_col
 
     config = tf.ConfigProto()
     config.gpu_options.per_process_gpu_memory_fraction = 0.45
     K.set_session(tf.Session(config=config))
 
-    df = pd.read_csv(DATA_PATH, sep='\t').dropna()
+    df = pd.read_csv(DATA_PATH, sep='\t', index_col=INDEX_COL).dropna()
     df = df.loc[df.seq_len >= 50, :]
 
     try:
