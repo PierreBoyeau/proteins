@@ -5,15 +5,16 @@ from tqdm import tqdm
 from tensorflow import flags
 import tensorflow as tf
 from keras.preprocessing.sequence import pad_sequences
-from keras.models import load_model, Input, Sequential
+from keras.models import load_model, Input
 from keras.layers import Embedding, Bidirectional, Dense, Dropout, CuDNNLSTM, Conv1D
-from keras.layers import Activation, Permute, Reshape, Multiply, RepeatVector, Lambda, Concatenate
+from keras.layers import Activation, Permute, Multiply, RepeatVector, Lambda, Concatenate
 import keras.backend as K
 from keras.models import Model
-from keras.optimizers import Adam, SGD, RMSprop
+from keras.optimizers import Adam
 from keras.callbacks import TensorBoard, ModelCheckpoint
 
-from riken.protein_io import data_op, reader, replacement_mat, prot_features
+from protein_io.reader import get_pssm_mat
+from riken.protein_io import data_op, prot_features
 
 
 chars = prot_features.chars
@@ -37,21 +38,8 @@ def get_all_features(seq, y, indices, pssm_format_fi='../data/psiblast/swiss/{}_
     pssm_filtered = []
     for (sen, y_value, id) in zip(tqdm(seq), y, indices):
         pssm_path = pssm_format_fi.format(id)
-        try:
-            pssm = pd.read_csv(pssm_path, sep=' ', skiprows=2, skipfooter=6, skipinitialspace=True)\
-                .reset_index(level=[2, 3])
-            pssm_feat = pssm.iloc[:MAXLEN].values
-            seq_len, n_features_pssm = pssm_feat.shape
-            # print(n_features_pssm)
-            pssm_mat = np.zeros(shape=(MAXLEN, 42))
-            pssm_mat[-seq_len:] = pssm_feat
-            if np.isnan(pssm_mat).any():
-                raise ValueError
 
-        except Exception as e:
-            print(e)
-            print('Error!')
-            pssm_mat = np.zeros(shape=(MAXLEN, 42))
+        pssm_mat = get_pssm_mat(path_to_pssm=pssm_path, max_len=MAXLEN)
         sequences_filtered.append(sen)
         y_filtered.append(y_value)
         pssm_filtered.append(pssm_mat)
