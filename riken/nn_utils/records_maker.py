@@ -107,10 +107,12 @@ def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swi
 if __name__ == '__main__':
     flags.DEFINE_string('train_path', './swiss_train_data500.tfrecords', 'Path of training records')
     flags.DEFINE_string('val_path', './swiss_val_data500.tfrecords', 'Path of val records')
+    flags.DEFINE_integer('index_col', None, 'index_col if exists')
     FLAGS = flags.FLAGS
 
     train_records_filename = FLAGS.train_path
     val_records_filename = FLAGS.val_path
+    index_col = FLAGS.index_col
 
     data_path = '/home/pierre/riken/data/riken_data/complete_from_xlsx_v2COMPLETE.tsv'
     pssm_format_file = '../../data/psiblast/riken_data_v2/{}_pssm.txt'
@@ -127,7 +129,7 @@ if __name__ == '__main__':
     # y_name = 'clan'
     # group_name = None
 
-    df = pd.read_csv(data_path, sep='\t').dropna()
+    df = pd.read_csv(data_path, sep='\t', index_col=index_col).dropna()
     y_ind_name = y_name+'_ind'
     label_indices, uniques = pd.factorize(df[y_name])
     print('Number of distinct classes :', len(uniques))
