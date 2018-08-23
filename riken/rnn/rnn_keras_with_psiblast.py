@@ -146,6 +146,7 @@ if __name__ == '__main__':
     flags.DEFINE_string('transfer_path', default=None, help='path to ckpt if doing transfer learning')
     flags.DEFINE_string('layer_name', default=None, help='Name of layer to use for transfer')
     flags.DEFINE_string('groups', default='NO', help='should we use groups')
+    flags.DEFINE_integer('index_col', default=None, help='index_col in csv')
 
     FLAGS = flags.FLAGS
 
@@ -160,12 +161,13 @@ if __name__ == '__main__':
     GROUPS = FLAGS.groups if FLAGS.groups!='NO' else None
     SPLITTER = data_op.shuffle_indices if GROUPS is None else data_op.group_shuffle_indices
     PSSM_FORMAT_FILE = FLAGS.pssm_format_file
+    INDEX_COL = FLAGS.index_col
 
     config = tf.ConfigProto()
     config.gpu_options.per_process_gpu_memory_fraction = 0.45
     K.set_session(tf.Session(config=config))
 
-    df = pd.read_csv(DATA_PATH, sep='\t').dropna()
+    df = pd.read_csv(DATA_PATH, sep='\t', index_col=INDEX_COL).dropna()
     df = df.loc[df.seq_len >= 50, :]
 
     try:
@@ -177,27 +179,19 @@ if __name__ == '__main__':
     y = pd.get_dummies(y).values
     X = pad_sequences([[prot_features.safe_char_to_idx(char) for char in sequence]
                        for sequence in sequences], maxlen=MAXLEN)
-    groups = None if GROUPS is None else df[GROUPS].values
     indices = df.index.values
 
-    # Get train test indices before getting all features (potentially less
-    # FOR CONSISTENCY PURPOSES
-    train_inds, test_inds = SPLITTER(sequences, y, groups)
+    if GROUPS == 'predefined':
+        train_inds, test_inds = np.where(df.is_train)[0], np.where(df.is_train == False)[0]
 
-    X, pssm, y = get_all_features(X, y, indices, pssm_format_fi=PSSM_FORMAT_FILE)
-
-    def convert_indices(old_to_new_dic, indices):
-        res_ind = []
-        for ind in indices:
-            if ind in old_to_new_dic:
-                res_ind.append(old_to_new_dic[ind])
-        return np.array(res_ind)
-
-    # train_inds = convert_indices(old_to_new_indices, train_inds)
-    # test_inds = convert_indices(old_to_new_indices, test_inds)
-    print(np.intersect1d(train_inds, test_inds))
+    else:
+        groups = None if GROUPS is None else df[GROUPS].values
+        train_inds, test_inds = SPLITTER(sequences, y, groups)
+    print('{} train examples and {} test examples'.format(len(train_inds), len(test_inds)))
     assert len(np.intersect1d(train_inds, test_inds)) == 0
     print(train_inds.shape, test_inds.shape)
+
+    X, pssm, y = get_all_features(X, y, indices, pssm_format_fi=PSSM_FORMAT_FILE)
     Xtrain, Xtest, ytrain, ytest = X[train_inds], X[test_inds], y[train_inds], y[test_inds]
     pssm_train, pssm_test = pssm[train_inds], pssm[test_inds]
 
