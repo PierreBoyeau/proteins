@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from keras.preprocessing.sequence import pad_sequences
 
-from riken.protein_io import prot_features, data_op
+from riken.protein_io import prot_features, data_op, reader
 
 flags = tf.flags
 
@@ -67,22 +67,7 @@ def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swi
     for (sen, label_id, id) in zip(tqdm(sequences), y, indices):
         pssm_path = pssm_format_fi.format(id)
         try:
-            pssm = pd.read_csv(pssm_path, sep=' ', skiprows=2, skipfooter=6, skipinitialspace=True)\
-                .reset_index(level=[2, 3])
-            pssm_feat = pssm.iloc[:MAX_LEN].values
-            seq_len, n_features_pssm = pssm_feat.shape
-            # print(n_features_pssm)
-            pssm_mat = np.zeros(shape=(MAX_LEN, n_features_pssm))
-            pssm_mat[-seq_len:] = pssm_feat
-            pssm_mat = pssm_mat.reshape(-1)
-            if np.isnan(pssm_mat).any():
-                print('issue')
-
-            # if seq_len != len(sen):
-            #     print('Inconsistency for protein id : {}'.format(id))
-            #     print(sen)
-            #     print(pssm.index.values)
-
+            pssm_mat = reader.get_pssm_mat(pssm_path, max_len=MAX_LEN)
             tokens = [char for char in sen]
             tokens = np.array([prot_features.safe_char_to_idx(char) for char in tokens])
             padded_tokens = pad_sequences(tokens.reshape(1, -1), maxlen=MAX_LEN, value=VALUE).reshape(-1)
@@ -92,7 +77,7 @@ def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swi
                 # 'sentence': _byte_feature(str.encode(sen)),
                 'tokens': _int64_feature(padded_tokens),
                 'pssm_li': _float_feature(pssm_mat),
-                'n_features_pssm': _int64_feature([n_features_pssm]),
+                'n_features_pssm': _int64_feature([42]),
                 # 'blosum_feat': _float_feature(padded_blosum_feat),
                 'label': _int64_feature([label_id])
             }

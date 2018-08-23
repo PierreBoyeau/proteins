@@ -11,6 +11,22 @@ from tqdm import tqdm
 """
 
 
+def get_pssm_mat(path_to_pssm, max_len):
+    try:
+        pssm_df = pd.read_csv(path_to_pssm, sep=' ', skiprows=2, skipfooter=6, skipinitialspace=True) \
+            .reset_index(level=[2, 3])
+        pssm_feat = pssm_df.iloc[:max_len].values
+        seq_len, _ = pssm_feat.shape
+        pssm_mat = np.zeros(shape=(max_len, 42))
+        pssm_mat[-seq_len:] = pssm_feat
+        if np.isnan(pssm_mat).any():
+            raise ValueError
+    except Exception as e:
+        print(e)
+        print('Error!')
+        pssm_mat = np.zeros(shape=(max_len, 42))
+    return pssm_mat
+
 def read_fasta(filename):
     with open(filename) as fasta_file:  # Will close handle cleanly
         idx = []
