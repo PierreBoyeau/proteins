@@ -111,21 +111,31 @@ if __name__ == '__main__':
 
     train_records_filename = FLAGS.train_path
     val_records_filename = FLAGS.val_path
+
+    data_path = '/home/pierre/riken/data/riken_data/complete_from_xlsx_v2COMPLETE.tsv'
+    pssm_format_file = '../../data/psiblast/riken_data_v2/{}_pssm.txt'
+    y_name = 'is_allergenic'
+    group_name = 'predefined'
+
     # data_path = '/home/pierre/riken/data/riken_data/complete_from_xlsx.tsv'
     # pssm_format_file = '../../data/psiblast/riken_data/{}_pssm.txt'
     # y_name = 'is_allergenic'
     # group_name = 'species'
 
-    data_path = '/home/pierre/riken/data/swiss/swiss_with_clans.tsv'
-    pssm_format_file = '../../data/psiblast/swiss/{}_pssm.txt'
-    y_name = 'clan'
-    group_name = None
+    # data_path = '/home/pierre/riken/data/swiss/swiss_with_clans.tsv'
+    # pssm_format_file = '../../data/psiblast/swiss/{}_pssm.txt'
+    # y_name = 'clan'
+    # group_name = None
 
     df = pd.read_csv(data_path, sep='\t').dropna()
     y_ind_name = y_name+'_ind'
     label_indices, uniques = pd.factorize(df[y_name])
     print('Number of distinct classes :', len(uniques))
     df.loc[:, y_ind_name] = label_indices
+
+    if group_name == 'predefined':
+        train_df = df[df.is_train]
+        test_df = df[~df.is_train]
 
     if group_name is None:
         train_df, val_df = train_test_split(df, random_state=RANDOM_STATE, test_size=0.2)
@@ -136,6 +146,8 @@ if __name__ == '__main__':
                                                              df[group_name])
         print(train_inds.shape, val_inds)
         train_df, val_df = df.iloc[train_inds], df.iloc[val_inds]
+
+    print('{} training examples and {} test examples'.format(len(train_df), len(test_df)))
 
     # Writing Train data
     write_record(train_df, train_records_filename, y_ind_name, pssm_format_fi=pssm_format_file)
