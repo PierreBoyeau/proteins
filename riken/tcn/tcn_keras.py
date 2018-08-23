@@ -1,16 +1,23 @@
 import pandas as pd
 from keras.layers import Activation, Add, BatchNormalization, Conv1D, Dense, Dropout, Input, Lambda, RepeatVector, Permute, Multiply
 from keras.models import Model
-from keras.optimizers import Adam
+from keras.optimizers import Adam, RMSprop
 from keras.preprocessing.sequence import pad_sequences
 from keras.callbacks import TensorBoard, ModelCheckpoint
 import keras.backend as K
 from tensorflow import flags
 import os
 from riken.protein_io import data_op
-from riken.rnn.rnn_hyperparameters_search import get_embeddings, safe_char_to_idx, transfer_model
+from riken.rnn.rnn_keras import get_embeddings, safe_char_to_idx, transfer_model
 
 from sklearn.metrics import roc_auc_score
+
+import tensorflow as tf
+from keras.backend.tensorflow_backend import set_session
+
+config = tf.ConfigProto()
+config.gpu_options.per_process_gpu_memory_fraction = 0.3
+set_session(tf.Session(config=config))
 
 """
 python tcn_keras.py \
@@ -75,7 +82,8 @@ def tcn_model(n_classes, depth, n_filters, kernel_size, dropout_rate=0.0):
     h = Dense(n_classes, activation='softmax')(last)
     mdl = Model(inputs=inp, outputs=h)
 
-    optimizer = Adam(lr=LR)
+    # optimizer = Adam(lr=LR)
+    optimizer = RMSprop(lr=LR)
     mdl.compile(loss='categorical_crossentropy',
                 optimizer=optimizer,
                 metrics=['accuracy'])
@@ -94,6 +102,8 @@ if __name__ == '__main__':
     flags.DEFINE_bool('transfer_freeze', default=False, help='Should layers for last dense be froze')
     flags.DEFINE_string('layer_name', default=None, help='Name of layer to use for transfer')
     flags.DEFINE_string('groups', default='NO', help='should we use groups')
+    flags.DEFINE_integer('kernel_size', default=3, help='kernel size')
+    flags.DEFINE_integer('nb_filters', default=50, help='nb_filters')
     FLAGS = flags.FLAGS
 
     RANDOM_STATE = 42
@@ -107,6 +117,8 @@ if __name__ == '__main__':
     LAYER_NAME = FLAGS.layer_name
     GROUPS = FLAGS.groups if FLAGS.groups!='NO' else None
     SPLITTER = data_op.shuffle_indices if GROUPS is None else data_op.group_shuffle_indices
+    KERNEL_SIZE = FLAGS.kernel_size
+    NB_FILTERS = FLAGS.nb_filters
 
     df = pd.read_csv(DATA_PATH, sep='\t').dropna()
     # df = df.loc[df.seq_len >= 50, :]
@@ -132,7 +144,7 @@ if __name__ == '__main__':
 
     if TRANSFER_PATH is None:
         # model = rnn_model_v2(n_classes=y.shape[1])
-        model = tcn_model(n_classes=y.shape[1], depth=7, n_filters=50, kernel_size=3, dropout_rate=0.5)
+        model = tcn_model(n_classes=y.shape[1], depth=8, n_filters=NB_FILTERS, kernel_size=KERNEL_SIZE, dropout_rate=0.5)
     else:
         model = transfer_model(n_classes_new=y.shape[1], mdl_path=TRANSFER_PATH, prev_model_output_layer='lambda_1')
     print(model.summary())

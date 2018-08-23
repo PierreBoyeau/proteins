@@ -2,7 +2,7 @@ from functools import partial
 import tensorflow as tf
 from tensorboard.plugins.beholder import BeholderHook
 
-from riken.nn_utils.io import train_input_fn, eval_input_fn
+from riken.nn_utils.io_tools import train_input_fn, eval_input_fn
 from riken.tcn import tcn_model
 
 """
