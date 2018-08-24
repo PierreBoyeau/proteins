@@ -53,6 +53,7 @@ if __name__ == '__main__':
     print('{} trainval examples and {} val examples'.format(len(trainval_inds), len(val_inds)))
 
     grid_params = {
+        'n_classes': [2],
         'n_filters': np.arange(25, 100),
         'kernel_size': [3, 4, 5, 6],
         'activation': ['relu', 'selu', 'tanh'],
