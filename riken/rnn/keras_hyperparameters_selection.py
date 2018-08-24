@@ -64,7 +64,7 @@ if __name__ == '__main__':
         'lstm_kernel_initializer': ['glorot_uniform', 'glorot_normal'],
 
         'batch_size': np.arange(32, 100),
-        'optim': [Adam, RMSprop, SGD]
+        'optim': [Adam(lr=1e-3), RMSprop(lr=1e-3), SGD(lr=1e-3)]
     }
 
     grid = ParameterSampler(grid_params, n_iter=10000)
