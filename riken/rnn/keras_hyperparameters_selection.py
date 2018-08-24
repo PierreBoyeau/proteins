@@ -45,7 +45,7 @@ if __name__ == '__main__':
     Xtrain, Xtest, ytrain, ytest = X[train_inds], X[test_inds], y[train_inds], y[test_inds]
     pssm_train, pssm_test = pssm[train_inds], pssm[test_inds]
 
-    trainval_inds, val_inds = SPLITTER(Xtrain, ytrain, groups[train_inds], test_size=0.3)
+    trainval_inds, val_inds = SPLITTER(Xtrain, ytrain, groups[train_inds], test_size=0.35)
     Xtrainval, Xval = Xtrain[trainval_inds], Xtrain[val_inds]
     pssm_trainval, pssm_val = pssm_train[trainval_inds], pssm_train[val_inds]
     ytrainval, yval = ytrain[trainval_inds], ytrain[val_inds]
@@ -71,6 +71,7 @@ if __name__ == '__main__':
     res_df = pd.DataFrame()
     for param in grid:
         try:
+            print(param)
             batch_size = param.pop('batch_size')
             mdl = rnn_model_attention_psiblast(**param)
             callback = EarlyStopping(patience=5)
@@ -82,7 +83,7 @@ if __name__ == '__main__':
             param['nb_epochs'] = callback.stopped_epoch
             param['test_score'] = roc_auc_score(yval[:, 1], mdl.predict([Xval, pssm_val])[:, 1])
             param['history'] = history
-            res_df.append(param, ignore_index=True)
+            res_df = res_df.append(param, ignore_index=True)
             res_df.to_csv(RESULTS_PATH, sep='\t')
         except Exception as e:
             print('ERROR!!!!!')
