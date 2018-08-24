@@ -13,7 +13,7 @@ from keras.models import Model
 from keras.optimizers import Adam
 from keras.callbacks import TensorBoard, ModelCheckpoint
 
-from protein_io.reader import get_pssm_mat
+from riken.protein_io.reader import get_pssm_mat
 from riken.protein_io import data_op, prot_features
 
 
