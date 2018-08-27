@@ -10,7 +10,7 @@ from keras.layers import Embedding, Bidirectional, Dense, Dropout, CuDNNLSTM, Co
 from keras.layers import Activation, Permute, Multiply, RepeatVector, Lambda, Concatenate
 import keras.backend as K
 from keras.models import Model
-from keras.optimizers import Adam
+from keras.optimizers import Adam, RMSprop
 from keras.callbacks import TensorBoard, ModelCheckpoint
 
 from riken.protein_io.reader import get_pssm_mat
@@ -30,6 +30,21 @@ ONEHOT_M = np.zeros((n_chars + 1, n_chars + 1))
 ONEHOT_M[1:, 1:] = np.eye(n_chars, n_chars)
 MAXLEN = 500
 LR = 1e-3
+
+# PARAMS = dict()
+PARAMS = {
+    'activation': 'tanh',
+    'conv_kernel_initializer': 'glorot_uniform',
+    'dropout_rate': 0.3222222222,
+    'kernel_size': 6,
+    'lstm_kernel_initializer': 'glorot_normal',
+    'n_cells': 25,
+    'n_filters': 79,
+    'nb_epochs': 13,
+    'optim': RMSprop(),
+    'test_score': 0.9741247995,
+    'trainable_embeddings': False,
+}
 
 
 def get_all_features(seq, y, indices, pssm_format_fi='../data/psiblast/swiss/{}_pssm.txt'):
@@ -187,7 +202,7 @@ if __name__ == '__main__':
     print(pssm_train[0])
     print(pssm_test[0])
 
-    model = rnn_model_attention_psiblast(n_classes=y.shape[1]) if TRANSFER_PATH is None \
+    model = rnn_model_attention_psiblast(n_classes=y.shape[1], **PARAMS) if TRANSFER_PATH is None \
         else transfer_model(y.shape[1], TRANSFER_PATH, dropout_rate=0.3)
 
     print(model.summary())
