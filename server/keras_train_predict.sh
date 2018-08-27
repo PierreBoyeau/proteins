@@ -1,7 +1,7 @@
 #!/bin/bash
 #$ -S /bin/bash
-#$ -cwd /home/pierre
-#$ -ac d=nvcr-tensorflow-1807-py3  -jc gpu-container_g1.24h
+#$ -jc gpu-container_g1.default
+#$ -ac d=nvcr-tensorflow-1807-py3
 
 . /fefs/opt/dgx/env_set/nvcr-tensorflow-1807-py3.sh
 
@@ -28,8 +28,8 @@ pip install keras --upgrade --user
 
 cd /home/pierre/riken/riken/rnn
 #python keras_hyperparameters_selection.py
-python rnn_keras_with_psiblast -data_path /home/pierre/riken/data/riken_data/complete_from_xlsx_v2COMPLETE.tsv \
--pssm_format_file /home/pierre/data/psiblast/riken_data_v2/{}_pssm.txt \
+python rnn_keras_with_psiblast.py -data_path /home/pierre/riken/data/riken_data/complete_from_xlsx_v2COMPLETE.tsv \
+-pssm_format_file /home/pierre/riken/data/psiblast/riken_data_v2/{}_pssm.txt \
 -key_to_predict is_allergenic \
 -log_dir logs_best_hyperp_v2 \
 -groups predefined \
