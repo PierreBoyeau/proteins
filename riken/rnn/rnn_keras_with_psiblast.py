@@ -44,6 +44,7 @@ PARAMS = {
     'optim': RMSprop(),
     'test_score': 0.9741247995,
     'trainable_embeddings': False,
+    'batch_size': 85
 }
 
 
@@ -172,9 +173,11 @@ if __name__ == '__main__':
     PSSM_FORMAT_FILE = FLAGS.pssm_format_file
     INDEX_COL = FLAGS.index_col
 
-    config = tf.ConfigProto()
-    config.gpu_options.per_process_gpu_memory_fraction = 0.45
-    K.set_session(tf.Session(config=config))
+    NB_EPOCHS = PARAMS.pop('nb_epochs')
+    BATCH_SIZE = PARAMS.pop('batch_size')
+    # config = tf.ConfigProto()
+    # config.gpu_options.per_process_gpu_memory_fraction = 0.45
+    # K.set_session(tf.Session(config=config))
 
     df = pd.read_csv(DATA_PATH, sep='\t', index_col=INDEX_COL).dropna()
     df = df.loc[df.seq_len >= 50, :]
@@ -211,8 +214,8 @@ if __name__ == '__main__':
     ckpt = ModelCheckpoint(filepath=os.path.join(LOG_DIR, 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
                            verbose=1, save_best_only=False, save_weights_only=False, mode='auto', period=1)
     model.fit([Xtrain, pssm_train], ytrain,  # bf [Xtrain, features_train], ...
-              batch_size=64,
-              epochs=12,
+              batch_size=BATCH_SIZE,
+              epochs=NB_EPOCHS,
               validation_data=([Xtest, pssm_test], ytest),
               callbacks=[tb, ckpt])
 

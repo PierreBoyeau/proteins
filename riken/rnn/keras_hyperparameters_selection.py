@@ -82,6 +82,7 @@ if __name__ == '__main__':
 
             param['nb_epochs'] = callback.stopped_epoch
             param['test_score'] = roc_auc_score(yval[:, 1], mdl.predict([Xval, pssm_val])[:, 1])
+            param['batch_size'] = batch_size
             param['history'] = history.history
             res_df = res_df.append(param, ignore_index=True)
             res_df.to_csv(RESULTS_PATH, sep='\t')
