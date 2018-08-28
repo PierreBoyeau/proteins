@@ -37,16 +37,16 @@ flags.DEFINE_integer('batch_size', 128, 'Number of epochs to train the model on'
 flags.DEFINE_float('lr', 1e-3, 'Maximum sequence lenght')
 flags.DEFINE_integer('max_size', 500, 'max size')
 FLAGS = flags.FLAGS
-SAVE_EVERY = 600
+SAVE_EVERY = 60
 
 pssm_nb_examples = 42
-train_params = {'depth': 5,
+train_params = {'depth': 8,
                 'n_classes': FLAGS.n_classes,
                 'max_size': FLAGS.max_size,
                 'kernel_size': 7,
-                'dropout_rate': 0.5,
-                'optimizer': tf.train.AdamOptimizer(learning_rate=FLAGS.lr),
-                'n_filters': 100}
+                'dropout_rate': 0.25,
+                'optimizer': tf.train.RMSPropOptimizer(learning_rate=1e-3),
+                'n_filters': 25}
 
 
 def model_fn(features, labels, mode=None, params=None, config=None):
