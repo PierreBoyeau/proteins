@@ -91,5 +91,6 @@ if __name__ == '__main__':
     train_spec = tf.estimator.TrainSpec(input_fn=my_train_fn, hooks=[beholder_hook])
     my_eval_fn = partial(eval_input_fn, path=FLAGS.val_path, max_size=FLAGS.max_size,
                          batch_size=FLAGS.batch_size)
-    eval_spec = tf.estimator.EvalSpec(input_fn=my_eval_fn, start_delay_secs=30, throttle_secs=600)
+    eval_spec = tf.estimator.EvalSpec(input_fn=my_eval_fn, start_delay_secs=SAVE_EVERY,
+                                      throttle_secs=30)
     tf.estimator.train_and_evaluate(mdl, train_spec, eval_spec)
