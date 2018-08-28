@@ -144,21 +144,26 @@ def transfer_model(n_classes_new, mdl_path, prev_model_output_layer='lambda_2', 
     return mdl
 
 
-if __name__ == '__main__':
+def parse_args():
     flags.DEFINE_integer('max_len', default=500, help='max sequence lenght')
     flags.DEFINE_float('lr', default=1e-3, help='learning rate')
     flags.DEFINE_float('memory_fraction', default=0.4, help='memory fraction')
-    flags.DEFINE_string('data_path', default='/home/pierre/riken/data/swiss/swiss_with_clans.tsv',
+    flags.DEFINE_string('data_path',
+                        default='/home/pierre/riken/data/swiss/swiss_with_clans.tsv',
                         help='path to tsv data')
     flags.DEFINE_string('pssm_format_file', default='', help='pssm_format_file')
     flags.DEFINE_string('key_to_predict', default='clan', help='key to predict (y)')
     flags.DEFINE_string('log_dir', default='./logs', help='path to save ckpt and summaries')
-    flags.DEFINE_string('transfer_path', default=None, help='path to ckpt if doing transfer learning')
+    flags.DEFINE_string('transfer_path', default=None,
+                        help='path to ckpt if doing transfer learning')
     flags.DEFINE_string('layer_name', default=None, help='Name of layer to use for transfer')
     flags.DEFINE_string('groups', default='NO', help='should we use groups')
     flags.DEFINE_integer('index_col', default=None, help='index_col in csv')
+    return flags.FLAGS
 
-    FLAGS = flags.FLAGS
+
+if __name__ == '__main__':
+    FLAGS = parse_args()
 
     RANDOM_STATE = 42
     MAXLEN = FLAGS.max_len
@@ -207,7 +212,6 @@ if __name__ == '__main__':
 
     model = rnn_model_attention_psiblast(n_classes=y.shape[1], **PARAMS) if TRANSFER_PATH is None \
         else transfer_model(y.shape[1], TRANSFER_PATH, dropout_rate=0.3)
-
     print(model.summary())
 
     tb = TensorBoard(log_dir=LOG_DIR)

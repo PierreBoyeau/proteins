@@ -1,4 +1,5 @@
 from functools import partial
+from tensorflow import flags
 import tensorflow as tf
 from tensorboard.plugins.beholder import BeholderHook
 
@@ -18,35 +19,6 @@ python trainer.py -train_path ./records/train_riken_data.tfrecords -val_path ./r
 -log_dir ./test3 -lr 1e-3
 
 """
-
-tf.logging.set_verbosity(tf.logging.INFO)
-
-flags = tf.flags
-flags.DEFINE_string('train_path',
-                    # '/home/pierre/riken/riken/rnn/records/train_swiss_with_pssm.tfrecords',
-                    '/home/pierre/riken/riken/rnn/records/train_riken_data.tfrecords',
-                    'Path to training records')
-flags.DEFINE_string('val_path',
-                    # '/home/pierre/riken/riken/rnn/records/val_swiss_with_pssm.tfrecords',
-                    '/home/pierre/riken/riken/rnn/records/test_riken_data.tfrecords',
-                    'Path to training records')
-flags.DEFINE_integer('n_classes', 590, 'Number of classes')
-flags.DEFINE_string('log_dir', './results', 'Path to training records')
-flags.DEFINE_integer('epochs', 10, 'Number of epochs to train the model on')
-flags.DEFINE_integer('batch_size', 128, 'Number of epochs to train the model on')
-flags.DEFINE_float('lr', 1e-3, 'Maximum sequence lenght')
-flags.DEFINE_integer('max_size', 500, 'max size')
-FLAGS = flags.FLAGS
-SAVE_EVERY = 60
-
-pssm_nb_examples = 42
-train_params = {'depth': 8,
-                'n_classes': FLAGS.n_classes,
-                'max_size': FLAGS.max_size,
-                'kernel_size': 7,
-                'dropout_rate': 0.25,
-                'optimizer': tf.train.RMSPropOptimizer(learning_rate=1e-3),
-                'n_filters': 25}
 
 
 def model_fn(features, labels, mode=None, params=None, config=None):
@@ -76,14 +48,44 @@ def estimator_def(parameters, cfg):
                                   params=parameters, config=cfg)
 
 
+def parse_args():
+    flags.DEFINE_string('train_path',
+                        # '/home/pierre/riken/riken/rnn/records/train_swiss_with_pssm.tfrecords',
+                        '/home/pierre/riken/riken/rnn/records/train_riken_data.tfrecords',
+                        'Path to training records')
+    flags.DEFINE_string('val_path',
+                        # '/home/pierre/riken/riken/rnn/records/val_swiss_with_pssm.tfrecords',
+                        '/home/pierre/riken/riken/rnn/records/test_riken_data.tfrecords',
+                        'Path to training records')
+    flags.DEFINE_integer('n_classes', 590, 'Number of classes')
+    flags.DEFINE_string('log_dir', './results', 'Path to training records')
+    flags.DEFINE_integer('epochs', 10, 'Number of epochs to train the model on')
+    flags.DEFINE_integer('batch_size', 128, 'Number of epochs to train the model on')
+    flags.DEFINE_float('lr', 1e-3, 'Maximum sequence lenght')
+    flags.DEFINE_integer('max_size', 500, 'max size')
+    return flags.FLAGS
+
+
 if __name__ == '__main__':
     tf.logging.set_verbosity(tf.logging.INFO)
+    FLAGS = parse_args()
+    SAVE_EVERY = 60
 
-    sess_config = tf.ConfigProto()
-    sess_config.gpu_options.per_process_gpu_memory_fraction = 0.8
+    pssm_nb_examples = 42
+    train_params = {'depth': 8,
+                    'n_classes': FLAGS.n_classes,
+                    'max_size': FLAGS.max_size,
+                    'kernel_size': 7,
+                    'dropout_rate': 0.25,
+                    'optimizer': tf.train.RMSPropOptimizer(learning_rate=1e-3),
+                    'n_filters': 25}
+
+    # sess_config = tf.ConfigProto()
+    # sess_config.gpu_options.per_process_gpu_memory_fraction = 0.8
     config_params = tf.estimator.RunConfig(model_dir=FLAGS.log_dir, log_step_count_steps=10,
                                            keep_checkpoint_max=100, save_checkpoints_secs=SAVE_EVERY,
-                                           session_config=sess_config)
+                                           # session_config=sess_config
+                                           )
     mdl = estimator_def(train_params, cfg=config_params)
     beholder_hook = BeholderHook(FLAGS.log_dir)
     my_train_fn = partial(train_input_fn, path=FLAGS.train_path, max_size=FLAGS.max_size,
