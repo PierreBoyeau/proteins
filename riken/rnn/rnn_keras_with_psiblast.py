@@ -10,10 +10,10 @@ from keras.layers import Embedding, Bidirectional, Dense, Dropout, CuDNNLSTM, Co
 from keras.layers import Activation, Permute, Multiply, RepeatVector, Lambda, Concatenate
 import keras.backend as K
 from keras.models import Model
-from keras.optimizers import Adam
+from keras.optimizers import Adam, RMSprop
 from keras.callbacks import TensorBoard, ModelCheckpoint
 
-from protein_io.reader import get_pssm_mat
+from riken.protein_io.reader import get_pssm_mat
 from riken.protein_io import data_op, prot_features
 
 
@@ -30,6 +30,22 @@ ONEHOT_M = np.zeros((n_chars + 1, n_chars + 1))
 ONEHOT_M[1:, 1:] = np.eye(n_chars, n_chars)
 MAXLEN = 500
 LR = 1e-3
+
+# PARAMS = dict()
+PARAMS = {
+    'activation': 'tanh',
+    'conv_kernel_initializer': 'glorot_uniform',
+    'dropout_rate': 0.3222222222,
+    'kernel_size': 6,
+    'lstm_kernel_initializer': 'glorot_normal',
+    'n_cells': 25,
+    'n_filters': 79,
+    'nb_epochs': 13,
+    'optim': RMSprop(),
+    'test_score': 0.9741247995,
+    'trainable_embeddings': False,
+    'batch_size': 85
+}
 
 
 def get_all_features(seq, y, indices, pssm_format_fi='../data/psiblast/swiss/{}_pssm.txt'):
@@ -53,46 +69,52 @@ def get_all_features(seq, y, indices, pssm_format_fi='../data/psiblast/swiss/{}_
     return sequences_filtered, pssm_filtered, y_filtered
 
 
-def get_embeddings(inp):
+def get_embeddings(inp, trainable_embeddings=False):
     """
     Construct features from amino acid indexes
     :param inp:
+    :param trainable_embeddings:
     :return:
     """
     embed = Embedding(len(ONEHOT_M), output_dim=n_chars + 1, weights=[ONEHOT_M],
-                      trainable=False, dtype='float32')(inp)
+                      trainable=trainable_embeddings, dtype='float32')(inp)
 
     static_embed = Embedding(STATIC_AA_TO_FEAT_M.shape[0], output_dim=STATIC_AA_TO_FEAT_M.shape[1],
                              weights=[STATIC_AA_TO_FEAT_M],
-                             trainable=False, dtype='float32')(inp)
+                             trainable=trainable_embeddings, dtype='float32')(inp)
     h = Concatenate()([embed, static_embed])
     return h
 
 
-def rnn_model_attention_psiblast(n_classes):
+def rnn_model_attention_psiblast(n_classes, n_filters=50, kernel_size=3, activation='relu',
+                                 n_cells=16, trainable_embeddings=False, dropout_rate=0.5,
+                                 conv_kernel_initializer='glorot_uniform',
+                                 lstm_kernel_initializer='glorot_uniform', optim=Adam(lr=1e-3)):
     aa_ind = Input(shape=(MAXLEN,), name='aa_indice')
-    h = get_embeddings(aa_ind)
+    h = get_embeddings(aa_ind, trainable_embeddings=trainable_embeddings)
 
     psiblast_prop = Input(shape=(MAXLEN, 42), name='psiblast_prop', dtype=np.float32)
 
     h = Concatenate()([h, psiblast_prop])
-    h = Conv1D(50, kernel_size=3, activation='relu', padding='same')(h)
+    h = Conv1D(n_filters, kernel_size=kernel_size, activation=activation, padding='same',
+               kernel_initializer=conv_kernel_initializer)(h)
 
-    h = Dropout(rate=0.5)(h)
-    h = Bidirectional(CuDNNLSTM(16, return_sequences=True))(h)
+    h = Dropout(rate=dropout_rate)(h)
+    h = Bidirectional(CuDNNLSTM(n_cells, return_sequences=True,
+                                kernel_initializer=lstm_kernel_initializer))(h)
 
     attention = Dense(1)(h)
     attention = Lambda(lambda x: K.squeeze(x, axis=2))(attention)
     attention = Activation(activation='softmax')(attention)
-    attention = RepeatVector(32)(attention)
+    attention = RepeatVector(int(2*n_cells))(attention)
     attention = Permute((2, 1))(attention)
 
     last = Multiply()([attention, h])
-    last = Lambda(lambda x: K.sum(x, axis=1), output_shape=(32,))(last)
+    last = Lambda(lambda x: K.sum(x, axis=1), output_shape=(int(2*n_cells),))(last)
 
     h = Dense(n_classes, activation='softmax')(last)
     mdl = Model(inputs=[aa_ind, psiblast_prop], outputs=h)
-    optimizer = Adam(lr=LR)
+    optimizer = optim
     mdl.compile(loss='categorical_crossentropy',
                 optimizer=optimizer,
                 metrics=['accuracy'])
@@ -151,9 +173,11 @@ if __name__ == '__main__':
     PSSM_FORMAT_FILE = FLAGS.pssm_format_file
     INDEX_COL = FLAGS.index_col
 
-    config = tf.ConfigProto()
-    config.gpu_options.per_process_gpu_memory_fraction = 0.45
-    K.set_session(tf.Session(config=config))
+    NB_EPOCHS = PARAMS.pop('nb_epochs')
+    BATCH_SIZE = PARAMS.pop('batch_size')
+    # config = tf.ConfigProto()
+    # config.gpu_options.per_process_gpu_memory_fraction = 0.45
+    # K.set_session(tf.Session(config=config))
 
     df = pd.read_csv(DATA_PATH, sep='\t', index_col=INDEX_COL).dropna()
     df = df.loc[df.seq_len >= 50, :]
@@ -181,7 +205,7 @@ if __name__ == '__main__':
     print(pssm_train[0])
     print(pssm_test[0])
 
-    model = rnn_model_attention_psiblast(n_classes=y.shape[1]) if TRANSFER_PATH is None \
+    model = rnn_model_attention_psiblast(n_classes=y.shape[1], **PARAMS) if TRANSFER_PATH is None \
         else transfer_model(y.shape[1], TRANSFER_PATH, dropout_rate=0.3)
 
     print(model.summary())
@@ -190,8 +214,8 @@ if __name__ == '__main__':
     ckpt = ModelCheckpoint(filepath=os.path.join(LOG_DIR, 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
                            verbose=1, save_best_only=False, save_weights_only=False, mode='auto', period=1)
     model.fit([Xtrain, pssm_train], ytrain,  # bf [Xtrain, features_train], ...
-              batch_size=64,
-              epochs=12,
+              batch_size=BATCH_SIZE,
+              epochs=NB_EPOCHS,
               validation_data=([Xtest, pssm_test], ytest),
               callbacks=[tb, ckpt])
 
