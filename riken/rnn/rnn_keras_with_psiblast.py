@@ -42,7 +42,7 @@ PARAMS = {
     'n_filters': 79,
     'nb_epochs': 13,
     'optim': RMSprop(),
-    'test_score': 0.9741247995,
+    # 'test_score': 0.9741247995,
     'trainable_embeddings': False,
     'batch_size': 85
 }
