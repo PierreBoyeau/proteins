@@ -10,7 +10,7 @@ INDEX_COL = 0
 KEY_TO_PREDICT = 'is_allergenic'
 GROUPS = 'genre'
 AGG_MODE = 'sum'
-MODEL_PATH = '/home/pierre/riken/word2vec/prot_vec_model_10_epochs_l_4.model'
+MODEL_PATH = '/home/pierre/riken/riken/word2vec/prot_vec_model_10_epochs_l_4.model'
 MDL_PARAMS = {'l2_leaf_reg': 1.0,
               'class_weights': [1.0, 5.0],
               'random_strength': 10,
