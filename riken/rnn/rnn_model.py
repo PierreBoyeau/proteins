@@ -66,7 +66,6 @@ class RnnModel:
 
                 outputs = tf.layers.dropout(outputs, rate=self.dropout_keep_p)
 
-
                 # BEWARE : looks like this function is TIME major!!
                 # h = tf.transpose(h, perm=[1, 0, 2], name='transpose_to_time_major')
                 # outputs, state = tf.contrib.cudnn_rnn.CudnnLSTM(num_layers=1, num_units=128, direction='bidirectional')(h)
@@ -79,6 +78,7 @@ class RnnModel:
                 last_output = tf.multiply(outputs, attention)
 
                 last_output = tf.reduce_sum(last_output, axis=1)
+                self.attention_output = last_output
 
         with tf.variable_scope('dense'):
             final = tf.layers.dense(last_output, self.n_classes, activation=None)
@@ -91,19 +91,6 @@ class RnnModel:
         self.optimizer_fn = optimizer
         self.optimizer = None
         self.init_op = None
-        # self.loss = tf.losses.softmax_cross_entropy(onehot_labels=self.labels_one_hot, logits=self.logits)
-        # self.gradient_loss = tf.gradients(self.loss, embed)[0]
-        # label_v = tf.cast(self.labels, dtype=tf.int32)
-        # pred_v = tf.argmax(self.probabilities, 1, output_type=tf.int32)
-        # acc, acc_op = tf.metrics.accuracy(label_v, pred_v)
-        # self.acc = acc, acc_op
-        #
-        # auc, auc_op = tf.metrics.auc(self.labels, self.probabilities[:, 1])
-        # # auc, auc_op = tf.metrics.auc(self.labels_one_hot, self.probabilities)
-        # self.auc = auc, auc_op
-        #
-        # self.optimizer = optimizer.minimize(self.loss, global_step=tf.train.get_global_step())
-        # self.init_op = tf.initialize_all_variables()
 
     def build(self):
         labels_one_hot = tf.one_hot(self.labels, self.n_classes)
@@ -124,3 +111,27 @@ class RnnModel:
         return self.optimizer
 
 
+class RnnDecoder:
+    def __init__(self, encoder_input, n_hidden=10, lstm_size=25, max_size=500):
+        self.n_hidden = n_hidden
+        self.encoder_input = encoder_input
+        self.cell_fn = tf.nn.rnn_cell.LSTMCell
+        self.lstm_size = lstm_size
+        self.max_size = max_size
+
+        self.means = tf.layers.dense(self.encoder_input, units=self.n_hidden)
+        self.log_sgm = tf.layers.dense(self.encoder_input, units=self.n_hidden)
+        eps = tf.random_normal(shape=tf.shape(self.means))
+        self.h = self.means + eps*tf.exp(self.log_sgm)
+
+        h = tf.expand_dims(self.h, axis=1)
+        h = tf.tile(h, multiples=[1, self.max_size, 1])
+
+        fw_lstm = self.cell_fn(num_units=self.lstm_size)
+        bw_lstm = self.cell_fn(num_units=self.lstm_size)
+        outputs, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm, bw_lstm, h, dtype=tf.float32,
+                                                         scope='BLSTM_Decoder')
+        outputs = tf.concat(outputs, 2)
+        self.logits = tf.layers.dense(outputs, units=len(chars))
+        self.probabilities = tf.nn.softmax(self.logits, axis=2)
+        self.predictions = tf.argmax(self.probabilities, axis=2)
