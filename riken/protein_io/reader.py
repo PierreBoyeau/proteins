@@ -11,14 +11,24 @@ from tqdm import tqdm
 """
 
 
-def get_pssm_mat(path_to_pssm, max_len):
+def get_pssm_mat(path_to_pssm, max_len, padding='pre'):
+    if padding not in ['pre', 'post']:
+        raise ValueError('padding should either be "pre" or "post"')
     try:
         pssm_df = pd.read_csv(path_to_pssm, sep=' ', skiprows=2, skipfooter=6, skipinitialspace=True) \
             .reset_index(level=[2, 3])
-        pssm_feat = pssm_df.iloc[:max_len].values
+
+        # Truncating beginning of sequences
+        pssm_feat = pssm_df.iloc[-max_len:].values
         seq_len, _ = pssm_feat.shape
         pssm_mat = np.zeros(shape=(max_len, 42))
-        pssm_mat[-seq_len:] = pssm_feat
+
+        # Applying 0-padding to begin or end based on padding option
+        if padding == 'pre':
+            pssm_mat[-seq_len:] = pssm_feat
+        else:
+            pssm_mat[:seq_len] = pssm_feat
+
         if np.isnan(pssm_mat).any():
             raise ValueError
     except Exception as e:
@@ -26,6 +36,7 @@ def get_pssm_mat(path_to_pssm, max_len):
         print('Error!')
         pssm_mat = np.zeros(shape=(max_len, 42))
     return pssm_mat
+
 
 def read_fasta(filename):
     with open(filename) as fasta_file:  # Will close handle cleanly

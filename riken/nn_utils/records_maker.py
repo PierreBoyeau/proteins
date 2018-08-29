@@ -1,3 +1,4 @@
+import argparse
 import tensorflow as tf
 import pandas as pd
 from tqdm import tqdm
@@ -9,7 +10,6 @@ from riken.protein_io import prot_features, data_op, reader
 
 flags = tf.flags
 
-MAX_LEN = 500
 RANDOM_STATE = 42
 VALUE = -1
 
@@ -52,7 +52,8 @@ def get_feat(int_seq_tokens):
     return np.array(sequence_features)
 
 
-def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swiss/{}_pssm.txt'):
+def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swiss/{}_pssm.txt',
+                 max_len=None, padding='pre'):
     """
     Main function to write tensorflow records
 
@@ -67,19 +68,19 @@ def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swi
     for (sen, label_id, id) in zip(tqdm(sequences), y, indices):
         pssm_path = pssm_format_fi.format(id)
         try:
-            pssm_mat = reader.get_pssm_mat(pssm_path, max_len=MAX_LEN)
+            tokens = [char for char in sen]
+            tokens = np.array([prot_features.safe_char_to_idx(char) for char in tokens])
+            tokens = pad_sequences(tokens.reshape(1, -1), maxlen=max_len,
+                                   value=VALUE, padding=padding).reshape(-1)
+            pssm_mat = reader.get_pssm_mat(pssm_path, max_len=max_len, padding=padding)
             pssm_mat = pssm_mat.reshape(-1)
 
             if np.isnan(pssm_mat).any():
                 raise ValueError
-            tokens = [char for char in sen]
-            tokens = np.array([prot_features.safe_char_to_idx(char) for char in tokens])
-            padded_tokens = pad_sequences(tokens.reshape(1, -1), maxlen=MAX_LEN, value=VALUE).reshape(-1)
-            # padded_blosum_feat = get_feat(padded_tokens)
             feature = {
                 'sentence_len': _int64_feature([len(sen)]),
                 # 'sentence': _byte_feature(str.encode(sen)),
-                'tokens': _int64_feature(padded_tokens),
+                'tokens': _int64_feature(tokens),
                 'pssm_li': _float_feature(pssm_mat),
                 'n_features_pssm': _int64_feature([42]),
                 # 'blosum_feat': _float_feature(padded_blosum_feat),
@@ -93,15 +94,23 @@ def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swi
     return 0
 
 
-if __name__ == '__main__':
-    flags.DEFINE_string('train_path', './swiss_train_data500.tfrecords', 'Path of training records')
-    flags.DEFINE_string('val_path', './swiss_val_data500.tfrecords', 'Path of val records')
-    flags.DEFINE_integer('index_col', None, 'index_col if exists')
-    FLAGS = flags.FLAGS
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-train_path', type=str, help='Path to train record')
+    parser.add_argument('-val_path', type=str, help='Path to val record')
+    parser.add_argument('-index_col', default=None, type=int, help='index_col if exists')
+    parser.add_argument('-max_len', default=None, type=int,
+                        help='max_len of sequences if pad is True')
+    return parser.parse_args()
 
-    train_records_filename = FLAGS.train_path
-    val_records_filename = FLAGS.val_path
-    index_col = FLAGS.index_col
+
+if __name__ == '__main__':
+    args = parse_args()
+
+    train_records_filename = args.train_path
+    val_records_filename = args.val_path
+    index_col = args.index_col
+    max_len = args.max_len
 
     data_path = '/home/pierre/riken/data/riken_data/complete_from_xlsx_v2COMPLETE.tsv'
     pssm_format_file = '../../data/psiblast/riken_data_v2/{}_pssm.txt'
@@ -126,8 +135,14 @@ if __name__ == '__main__':
 
     if group_name == 'predefined':
         train_df = df[df.is_train]
-        val_df = df[df.is_train==False]
-
+        val_df = df[df.is_train == False]
+        # # Used for trainval valval
+        # train_inds, val_inds = data_op.group_shuffle_indices(train_df.sequences,
+        #                                                      train_df[y_ind_name],
+        #                                                      train_df['species'], test_size=0.35)
+        # trainval_df, valval_df = train_df.iloc[train_inds], train_df.iloc[val_inds]
+        # train_df = trainval_df
+        # val_df = valval_df
     elif group_name is None:
         train_df, val_df = train_test_split(df, random_state=RANDOM_STATE, test_size=0.2)
     else:
