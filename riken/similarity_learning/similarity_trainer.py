@@ -1,7 +1,9 @@
-import tensorflow as tf
 from functools import partial
-from riken.nn_utils.io_tools import train_input_fn, eval_input_fn
 
+import tensorflow as tf
+from tensorflow import flags
+
+from riken.nn_utils.io_tools import train_input_fn, eval_input_fn
 from riken.similarity_learning import similarity_model
 
 
@@ -34,9 +36,7 @@ def transfer_model(parameters, cfg, transfer_path):
                                   params=parameters, config=cfg, warm_start_from=ws)
 
 
-if __name__ == '__main__':
-    tf.logging.set_verbosity(tf.logging.INFO)
-    flags = tf.flags
+def parse_args():
     flags.DEFINE_string('train_path',
                         '/home/pierre/riken/riken/rnn/records/train_riken_data.tfrecords',
                         'Path to training records')
@@ -52,8 +52,12 @@ if __name__ == '__main__':
     flags.DEFINE_integer('max_size', 500, 'max size')
     flags.DEFINE_integer('lstm_size', 4, 'max size')
     flags.DEFINE_float('margin', 1.0, 'Maximum sequence lenght')
-    FLAGS = flags.FLAGS
+    return flags.FLAGS
 
+
+if __name__ == '__main__':
+    tf.logging.set_verbosity(tf.logging.INFO)
+    FLAGS = parse_args()
     SAVE_EVERY = 60
 
     pssm_nb_examples = 42
@@ -79,9 +83,6 @@ if __name__ == '__main__':
     eval_spec = tf.estimator.EvalSpec(input_fn=my_eval_fn, start_delay_secs=30,
                                       throttle_secs=SAVE_EVERY)
     # tf.estimator.train_and_evaluate(mdl, train_spec, eval_spec)
-
-
-    from tensorflow.python import debug as tf_debug
 
     # hook = tf_debug.TensorBoardDebugHook("griffin1:6009")
     mdl.train(my_train_fn,
