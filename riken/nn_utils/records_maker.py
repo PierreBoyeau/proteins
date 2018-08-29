@@ -79,11 +79,9 @@ def write_record(my_df, record_path, y_tag, pssm_format_fi='../data/psiblast/swi
                 raise ValueError
             feature = {
                 'sentence_len': _int64_feature([len(sen)]),
-                # 'sentence': _byte_feature(str.encode(sen)),
                 'tokens': _int64_feature(tokens),
                 'pssm_li': _float_feature(pssm_mat),
                 'n_features_pssm': _int64_feature([42]),
-                # 'blosum_feat': _float_feature(padded_blosum_feat),
                 'label': _int64_feature([label_id])
             }
             example = tf.train.Example(features=tf.train.Features(feature=feature))
@@ -100,7 +98,8 @@ def parse_args():
     parser.add_argument('-val_path', type=str, help='Path to val record')
     parser.add_argument('-index_col', default=None, type=int, help='index_col if exists')
     parser.add_argument('-max_len', default=None, type=int,
-                        help='max_len of sequences if pad is True')
+                        help='max_len of sequences')
+    parser.add_argument('-padding', default='pre', type=str, help='pre or post')
     return parser.parse_args()
 
 
@@ -111,6 +110,7 @@ if __name__ == '__main__':
     val_records_filename = args.val_path
     index_col = args.index_col
     max_len = args.max_len
+    padding = args.padding
 
     data_path = '/home/pierre/riken/data/riken_data/complete_from_xlsx_v2COMPLETE.tsv'
     pssm_format_file = '../../data/psiblast/riken_data_v2/{}_pssm.txt'
@@ -136,13 +136,6 @@ if __name__ == '__main__':
     if group_name == 'predefined':
         train_df = df[df.is_train]
         val_df = df[df.is_train == False]
-        # # Used for trainval valval
-        # train_inds, val_inds = data_op.group_shuffle_indices(train_df.sequences,
-        #                                                      train_df[y_ind_name],
-        #                                                      train_df['species'], test_size=0.35)
-        # trainval_df, valval_df = train_df.iloc[train_inds], train_df.iloc[val_inds]
-        # train_df = trainval_df
-        # val_df = valval_df
     elif group_name is None:
         train_df, val_df = train_test_split(df, random_state=RANDOM_STATE, test_size=0.2)
     else:
@@ -156,6 +149,8 @@ if __name__ == '__main__':
     print('{} training examples and {} test examples'.format(len(train_df), len(val_df)))
 
     # Writing Train data
-    write_record(train_df, train_records_filename, y_ind_name, pssm_format_fi=pssm_format_file)
+    write_record(train_df, train_records_filename, y_ind_name, pssm_format_fi=pssm_format_file,
+                 max_len=max_len, padding=padding)
     # Writing Val data
-    write_record(val_df, val_records_filename, y_ind_name, pssm_format_fi=pssm_format_file)
+    write_record(val_df, val_records_filename, y_ind_name, pssm_format_fi=pssm_format_file,
+                 max_len=max_len, padding=padding)
