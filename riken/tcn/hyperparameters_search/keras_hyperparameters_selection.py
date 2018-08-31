@@ -65,6 +65,9 @@ if __name__ == '__main__':
     for param in grid:
         try:
             print(param)
+            lr = param.pop('lr')
+            optim_fn = param.pop('optim')
+            param['optim'] = optim_fn(lr)
             batch_size = param.pop('batch_size')
             mdl = tcn_model(n_classes=2, **param)
             callback = EarlyStopping(patience=5)
@@ -73,6 +76,8 @@ if __name__ == '__main__':
                               callbacks=[callback],
                               epochs=25, validation_data=[[Xval, pssm_val], yval])
 
+            param['lr'] = lr
+            param['optim'] = optim_fn
             param['nb_epochs'] = callback.stopped_epoch
             param['test_score'] = roc_auc_score(yval[:, 1], mdl.predict([Xval, pssm_val])[:, 1])
             param['batch_size'] = batch_size
