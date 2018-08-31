@@ -17,6 +17,7 @@ class RnnModel:
         self.conv_n_filters = conv_n_filters
 
         self.cell_fn = tf.nn.rnn_cell.LSTMCell
+        # self.cell_fn = tf.nn.rnn_cell.GRUCell
         self.two_lstm_layers = two_lstm_layers
 
         with tf.name_scope('transferable'):
@@ -53,30 +54,35 @@ class RnnModel:
                 h = tf.layers.conv1d(h, filters=self.conv_n_filters, kernel_size=3, activation=tf.nn.relu, padding='same')
                 h = tf.layers.dropout(h, rate=self.dropout_keep_p)
 
-                fw_lstm = self.cell_fn(num_units=self.lstm_size)
-                bw_lstm = self.cell_fn(num_units=self.lstm_size)
-                outputs, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm, bw_lstm, h, dtype=tf.float32, scope='BLSTM1')
-                outputs = tf.concat(outputs, 2)
-                if self.two_lstm_layers:
-                    fw_lstm_2 = self.cell_fn(num_units=self.lstm_size,)
-                    bw_lstm_2 = self.cell_fn(num_units=self.lstm_size,)
-                    outputs_2, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm_2, bw_lstm_2, outputs,
-                                                                       dtype=tf.float32, scope='BLSTM2')
-                    outputs = tf.concat(outputs_2, 2)
+                # fw_lstm = self.cell_fn(num_units=self.lstm_size)
+                # bw_lstm = self.cell_fn(num_units=self.lstm_size)
+                # outputs, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm, bw_lstm, h,
+                # dtype=tf.float32, scope='BLSTM1')
+                # outputs = tf.concat(outputs, 2)
+
+                h = tf.transpose(h, perm=[1, 0, 2], name='inp_transpose_to_time_major')
+                outputs, state = tf.contrib.cudnn_rnn.CudnnLSTM(num_layers=1,
+                                                                num_units=self.lstm_size,
+                                                                input_mode='linear_input',
+                                                                direction='bidirectional',
+                                                                dropout=0.25)(h)
+                outputs = tf.transpose(outputs, perm=[1, 0, 2], name='out_transpose_to_time_major')
+
+                # if self.two_lstm_layers:
+                #     fw_lstm_2 = self.cell_fn(num_units=self.lstm_size,)
+                #     bw_lstm_2 = self.cell_fn(num_units=self.lstm_size,)
+                #     outputs_2, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm_2, bw_lstm_2,
+                #                                                        outputs,
+                #                                                        dtype=tf.float32,
+                #                                                        scope='BLSTM2')
+                #     outputs = tf.concat(outputs_2, 2)
 
                 outputs = tf.layers.dropout(outputs, rate=self.dropout_keep_p)
-
-                # BEWARE : looks like this function is TIME major!!
-                # h = tf.transpose(h, perm=[1, 0, 2], name='transpose_to_time_major')
-                # outputs, state = tf.contrib.cudnn_rnn.CudnnLSTM(num_layers=1, num_units=128, direction='bidirectional')(h)
-                # outputs = tf.transpose(outputs, perm=[1, 0, 2], name='transpose_to_batch_major')
-
                 attention = tf.layers.Dense(1)(outputs)
                 attention = tf.squeeze(attention, axis=2)
                 attention = tf.nn.softmax(attention, axis=1)
                 attention = tf.tile(tf.expand_dims(attention, axis=2), multiples=[1, 1, 2*self.lstm_size])
                 last_output = tf.multiply(outputs, attention)
-
                 last_output = tf.reduce_sum(last_output, axis=1)
                 self.attention_output = last_output
 
@@ -102,7 +108,8 @@ class RnnModel:
 
         auc, auc_op = tf.metrics.auc(self.labels, self.probabilities[:, 1])
         self.auc = auc, auc_op
-        self.optimizer = self.optimizer_fn.minimize(self.loss, global_step=tf.train.get_global_step())
+        self.optimizer = self.optimizer_fn.minimize(self.loss,
+                                                    global_step=tf.train.get_global_step())
         self.init_op = tf.initialize_all_variables()
         return
 
@@ -116,22 +123,42 @@ class RnnDecoder:
         self.n_hidden = n_hidden
         self.encoder_input = encoder_input
         self.cell_fn = tf.nn.rnn_cell.LSTMCell
+        # self.cell_fn = tf.nn.rnn_cell.GRUCell
+        self.cell_fn = tf.contrib.cudnn_rnn.CudnnLSTM
         self.lstm_size = lstm_size
         self.max_size = max_size
 
         self.means = tf.layers.dense(self.encoder_input, units=self.n_hidden)
         self.log_sgm = tf.layers.dense(self.encoder_input, units=self.n_hidden)
-        eps = tf.random_normal(shape=tf.shape(self.means))
-        self.h = self.means + eps*tf.exp(self.log_sgm)
+        eps = tf.random_normal(shape=tf.shape(self.means), mean=0.1, stddev=1.0, dtype=tf.float32)
+
+        # VAE
+        # self.h = self.means + tf.multiply(eps, tf.exp(self.log_sgm))
+        # AE CLASSIQUE
+        self.h = self.means
 
         h = tf.expand_dims(self.h, axis=1)
-        h = tf.tile(h, multiples=[1, self.max_size, 1])
+        paddings = [[0, 0], [0, self.max_size-1], [0, 0]]
+        h = tf.pad(h, paddings)
+        print('H PADDED', h)
+        # h = tf.tile(h, multiples=[1, self.max_size, 1])
 
-        fw_lstm = self.cell_fn(num_units=self.lstm_size)
-        bw_lstm = self.cell_fn(num_units=self.lstm_size)
-        outputs, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm, bw_lstm, h, dtype=tf.float32,
-                                                         scope='BLSTM_Decoder')
-        outputs = tf.concat(outputs, 2)
-        self.logits = tf.layers.dense(outputs, units=len(chars))
+        # fw_lstm = self.cell_fn(num_units=self.lstm_size)
+        # bw_lstm = self.cell_fn(num_units=self.lstm_size)
+        # outputs, state = tf.nn.bidirectional_dynamic_rnn(fw_lstm, bw_lstm, h, dtype=tf.float32,
+        #                                                  scope='BLSTM_Decoder')
+        # outputs = tf.concat(outputs, 2)
+
+        h = tf.transpose(h, perm=[1, 0, 2], name='inp_transpose_to_time_major')
+        outputs, state = tf.contrib.cudnn_rnn.CudnnLSTM(num_layers=1,
+                                                        num_units=self.lstm_size,
+                                                        input_mode='linear_input',
+                                                        direction='bidirectional',
+                                                        dropout=0.25)(h)
+        outputs = tf.transpose(outputs, perm=[1, 0, 2], name='out_transpose_to_time_major')
+
+
+        # IMPORTANT: Here I suppose that there are in total
+        self.logits = tf.layers.dense(outputs, units=len(chars)+1)
         self.probabilities = tf.nn.softmax(self.logits, axis=2)
-        self.predictions = tf.argmax(self.probabilities, axis=2)
+        self.predictions = tf.argmax(self.probabilities, axis=2)  # 0 to char_max+1
