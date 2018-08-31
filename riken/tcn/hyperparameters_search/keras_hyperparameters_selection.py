@@ -6,8 +6,15 @@ from sklearn.model_selection import ParameterSampler
 from sklearn.metrics import roc_auc_score
 import time
 
+import tensorflow as tf
+
+flags = tf.flags
+
 if __name__ == '__main__':
-    RESULTS_PATH = 'results.csv'
+    flags.DEFINE_string('result_path', default=None, help='Name of layer to use for transfer')
+    FLAGS = flags.FLAGS
+
+    RESULTS_PATH = FLAGS.result_path
     RANDOM_STATE = 42
     MAXLEN = 500
     DATA_PATH = '/home/pierre/riken/data/riken_data/complete_from_xlsx_v2COMPLETE.tsv'
