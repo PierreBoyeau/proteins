@@ -6,6 +6,18 @@ from sklearn.model_selection import ParameterSampler
 from sklearn.metrics import roc_auc_score
 import time
 
+
+def generate_configs():
+    depth = np.random.randint(1, 4)
+    if depth == 1:
+        n_filters = np.random.randint(10, 101)
+        kernel_size = np.random.choice([1, 3, 5, 7, 9])
+    else:
+        n_filters = np.random.randint(10, 101, depth).tolist()
+        kernel_size = np.random.choice([1, 3, 5, 7, 9], depth).tolist()
+    return {"n_filters": n_filters, "kernel_size": kernel_size}
+
+
 if __name__ == '__main__':
     RESULTS_PATH = 'results.csv'
     RANDOM_STATE = 42
@@ -54,8 +66,9 @@ if __name__ == '__main__':
 
     grid_params = {
         'n_classes': [2],
-        'n_filters': np.arange(25, 100),
-        'kernel_size': [3, 4, 5, 6],
+        # 'n_filters': np.arange(25, 100),
+        # 'kernel_size': [3, 4, 5, 6],
+        'conv_params': [generate_configs() for _ in range(3000)],
         'activation': ['relu', 'selu', 'tanh'],
         'n_cells': np.arange(8, 32),
         'trainable_embeddings': [True, False],
@@ -64,14 +77,23 @@ if __name__ == '__main__':
         'lstm_kernel_initializer': ['glorot_uniform', 'glorot_normal'],
 
         'batch_size': np.arange(32, 100),
-        'optim': [Adam(lr=1e-3), RMSprop(lr=1e-3), SGD(lr=1e-3)]
-    }
+        'optim': [Adam, RMSprop, SGD],
+        'lr': [1e-1, 1e-2, 1e-3],    }
 
     grid = ParameterSampler(grid_params, n_iter=10000)
     res_df = pd.DataFrame()
     for param in grid:
         try:
             print(param)
+
+            lr = param.pop('lr')
+            optim_fn = param.pop('optim')
+            param['optim'] = optim_fn(lr)
+
+            conv_params = param.pop('conv_params')
+            param['n_filters'] = conv_params['n_filters']
+            param['kernel_size'] = conv_params['kernel_size']
+
             batch_size = param.pop('batch_size')
             mdl = rnn_model_attention_psiblast(**param)
             callback = EarlyStopping(patience=5)
@@ -80,6 +102,8 @@ if __name__ == '__main__':
                               callbacks=[callback],
                               epochs=25, validation_data=[[Xval, pssm_val], yval])
 
+            param['lr'] = lr
+            param['optim'] = optim_fn
             param['nb_epochs'] = callback.stopped_epoch
             param['test_score'] = roc_auc_score(yval[:, 1], mdl.predict([Xval, pssm_val])[:, 1])
             param['batch_size'] = batch_size
