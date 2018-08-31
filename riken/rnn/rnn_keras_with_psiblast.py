@@ -12,6 +12,7 @@ import keras.backend as K
 from keras.models import Model
 from keras.optimizers import Adam, RMSprop
 from keras.callbacks import TensorBoard, ModelCheckpoint
+from sklearn.metrics import roc_auc_score
 
 from riken.protein_io.reader import get_pssm_mat
 from riken.protein_io import data_op, prot_features
@@ -163,67 +164,46 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    FLAGS = parse_args()
-
+    args = parse_args()
     RANDOM_STATE = 42
-    MAXLEN = FLAGS.max_len
-    LR = FLAGS.lr
-    DATA_PATH = FLAGS.data_path
-    KEY_TO_PREDICT = FLAGS.key_to_predict
-    LOG_DIR = FLAGS.log_dir
-    TRANSFER_PATH = FLAGS.transfer_path
-    LAYER_NAME = FLAGS.layer_name
-    GROUPS = FLAGS.groups if FLAGS.groups!='NO' else None
+    GROUPS = args.groups if args.groups != 'NO' else None
     SPLITTER = data_op.shuffle_indices if GROUPS is None else data_op.group_shuffle_indices
-    PSSM_FORMAT_FILE = FLAGS.pssm_format_file
-    INDEX_COL = FLAGS.index_col
-
     NB_EPOCHS = PARAMS.pop('nb_epochs')
     BATCH_SIZE = PARAMS.pop('batch_size')
-    # config = tf.ConfigProto()
-    # config.gpu_options.per_process_gpu_memory_fraction = 0.45
-    # K.set_session(tf.Session(config=config))
 
-    df = pd.read_csv(DATA_PATH, sep='\t', index_col=INDEX_COL).dropna()
+    df = pd.read_csv(args.data_path, sep='\t', index_col=args.index_col).dropna()
     df = df.loc[df.seq_len >= 50, :]
 
-    sequences, y = df['sequences'].values, df[KEY_TO_PREDICT]
+    sequences, y = df['sequences'].values, df[args.key_to_predict]
     y = pd.get_dummies(y).values
     X = pad_sequences([[prot_features.safe_char_to_idx(char) for char in sequence]
-                       for sequence in sequences], maxlen=MAXLEN)
+                       for sequence in sequences], maxlen=args.max_len)
     indices = df.index.values
 
     if GROUPS == 'predefined':
         train_inds, test_inds = np.where(df.is_train)[0], np.where(df.is_train == False)[0]
-
     else:
         groups = None if GROUPS is None else df[GROUPS].values
         train_inds, test_inds = SPLITTER(sequences, y, groups)
     print('{} train examples and {} test examples'.format(len(train_inds), len(test_inds)))
     assert len(np.intersect1d(train_inds, test_inds)) == 0
-    print(train_inds.shape, test_inds.shape)
-
-    X, pssm, y = get_all_features(X, y, indices, pssm_format_fi=PSSM_FORMAT_FILE)
+    X, pssm, y = get_all_features(X, y, indices, pssm_format_fi=args.pssm_format_file)
     Xtrain, Xtest, ytrain, ytest = X[train_inds], X[test_inds], y[train_inds], y[test_inds]
     pssm_train, pssm_test = pssm[train_inds], pssm[test_inds]
 
-    print(pssm_train[0])
-    print(pssm_test[0])
-
-    model = rnn_model_attention_psiblast(n_classes=y.shape[1], **PARAMS) if TRANSFER_PATH is None \
-        else transfer_model(y.shape[1], TRANSFER_PATH, dropout_rate=0.3)
+    model = rnn_model_attention_psiblast(n_classes=y.shape[1], **PARAMS) if args.transfer_path is None \
+        else transfer_model(y.shape[1], args.transfer_path, dropout_rate=0.3)
     print(model.summary())
 
-    tb = TensorBoard(log_dir=LOG_DIR)
-    ckpt = ModelCheckpoint(filepath=os.path.join(LOG_DIR, 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
+    tb = TensorBoard(log_dir=args.log_dir)
+    ckpt = ModelCheckpoint(filepath=os.path.join(args.log_dir, 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
                            verbose=1, save_best_only=False, save_weights_only=False, mode='auto', period=1)
-    model.fit([Xtrain, pssm_train], ytrain,  # bf [Xtrain, features_train], ...
+    model.fit([Xtrain, pssm_train], ytrain,
               batch_size=BATCH_SIZE,
               epochs=NB_EPOCHS,
               validation_data=([Xtest, pssm_test], ytest),
               callbacks=[tb, ckpt])
 
     ypred = model.predict([Xtest, pssm_test])
-    from sklearn.metrics import roc_auc_score
     print(ypred[0])
     print(roc_auc_score(ytest[:, 1], ypred[:, 1]))
