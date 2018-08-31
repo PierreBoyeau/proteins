@@ -157,7 +157,6 @@ class RnnDecoder:
                                                         dropout=0.25)(h)
         outputs = tf.transpose(outputs, perm=[1, 0, 2], name='out_transpose_to_time_major')
 
-
         # IMPORTANT: Here I suppose that there are in total
         self.logits = tf.layers.dense(outputs, units=len(chars)+1)
         self.probabilities = tf.nn.softmax(self.logits, axis=2)

@@ -49,14 +49,15 @@ PARAMS = {
 }
 
 
-def get_all_features(seq, y, indices, pssm_format_fi='../data/psiblast/swiss/{}_pssm.txt'):
+def get_all_features(seq, y, indices, pssm_format_fi='../data/psiblast/swiss/{}_pssm.txt',
+                     maxlen=MAXLEN):
     sequences_filtered = []
     y_filtered = []
     pssm_filtered = []
     for (sen, y_value, id) in zip(tqdm(seq), y, indices):
         pssm_path = pssm_format_fi.format(id)
 
-        pssm_mat = get_pssm_mat(path_to_pssm=pssm_path, max_len=MAXLEN)
+        pssm_mat = get_pssm_mat(path_to_pssm=pssm_path, max_len=maxlen)
         sequences_filtered.append(sen)
         y_filtered.append(y_value)
         pssm_filtered.append(pssm_mat)
@@ -90,11 +91,12 @@ def get_embeddings(inp, trainable_embeddings=False):
 def rnn_model_attention_psiblast(n_classes, n_filters=50, kernel_size=3, activation='relu',
                                  n_cells=16, trainable_embeddings=False, dropout_rate=0.5,
                                  conv_kernel_initializer='glorot_uniform',
-                                 lstm_kernel_initializer='glorot_uniform', optim=Adam(lr=1e-3)):
-    aa_ind = Input(shape=(MAXLEN,), name='aa_indice')
+                                 lstm_kernel_initializer='glorot_uniform', optim=Adam(lr=1e-3),
+                                 maxlen=MAXLEN):
+    aa_ind = Input(shape=(maxlen,), name='aa_indice')
     h = get_embeddings(aa_ind, trainable_embeddings=trainable_embeddings)
 
-    psiblast_prop = Input(shape=(MAXLEN, 42), name='psiblast_prop', dtype=np.float32)
+    psiblast_prop = Input(shape=(maxlen, 42), name='psiblast_prop', dtype=np.float32)
 
     h = Concatenate()([h, psiblast_prop])
     h = Conv1D(n_filters, kernel_size=kernel_size, activation=activation, padding='same',
