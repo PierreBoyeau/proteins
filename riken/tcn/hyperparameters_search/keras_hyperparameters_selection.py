@@ -55,6 +55,7 @@ if __name__ == '__main__':
         'optim': [Adam, RMSprop, SGD],
         'lr': [1e-1, 1e-2, 1e-3],
         'maxlen': [500],
+        'batch_size': np.linspace(30, 150, num=50, dtype=int),
         'activation': ['tanh', 'relu', 'selu'],
         'kernel_initializer': ['glorot_uniform', 'glorot_normal'],
         'trainable_embeddings': [True, False],
