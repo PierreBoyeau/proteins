@@ -78,7 +78,8 @@ if __name__ == '__main__':
 
         'batch_size': np.arange(32, 100),
         'optim': [Adam, RMSprop, SGD],
-        'lr': [1e-1, 1e-2, 1e-3],    }
+        'lr': [1e-1, 1e-2, 1e-3]
+    }
 
     grid = ParameterSampler(grid_params, n_iter=10000)
     res_df = pd.DataFrame()

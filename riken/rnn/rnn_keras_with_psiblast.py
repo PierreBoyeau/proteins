@@ -106,6 +106,8 @@ def rnn_model_attention_psiblast(n_classes, n_filters=50, kernel_size=3, activat
             h = Conv1D(n_fil, kernel_size=k_sz, activation=activation, padding='same',
                        kernel_initializer=conv_kernel_initializer)(h)
     else:
+        n_filters = int(n_filters)
+        kernel_size = int(kernel_size)
         h = Conv1D(n_filters, kernel_size=kernel_size, activation=activation, padding='same',
                    kernel_initializer=conv_kernel_initializer)(h)
 
