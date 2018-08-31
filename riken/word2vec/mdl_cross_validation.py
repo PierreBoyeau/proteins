@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import roc_auc_score
 from sklearn.pipeline import Pipeline
-from sklearn.svm import SVC
+from sklearn.svm import LinearSVC
 
 from riken.protein_io.data_op import pseudo_cv_groups
 from riken.word2vec import classification_tools
@@ -23,11 +23,11 @@ def tokenizer4(seq):
 def get_clf(mode_name):
     if mode_name == 'svm':
         model = Pipeline([
-            ('TFIDF', TfidfVectorizer(max_features=32000, lowercase=False)),
+            ('TFIDF', TfidfVectorizer(max_features=1000000, lowercase=False)),
             # ('SVM', LinearSVC(tol=1e-6, max_iter=50000)),
-            ('RBF_SVM', SVC(tol=1e-6, max_iter=-1, cache_size=5000, random_state=42,
-                            # kernel='rbf'
-                            ))
+            ('SVM', LinearSVC(
+                # tol=1e-6, max_iter=-1, random_state=42,
+            ))
         ])
         model = model.set_params(**SVM_PARAMS)
         return model
@@ -53,13 +53,17 @@ KEY_TO_PREDICT = 'is_allergenic'
 GROUPS = 'genre'
 AGG_MODE = 'sum'
 MODEL_PATH = '/home/pierre/riken/riken/word2vec/prot_vec_model_10_epochs_l_4.model'
-BST_PARAMS = {'l2_leaf_reg': 1.0,
+BST_PARAMS = {'l2_leaf_reg': 15.0,
               'class_weights': [1.0, 5.0],
               'random_strength': 10,
               'depth': 5,
               'iterations': 1000,
               'bagging_temperature': 1.0}
-SVM_PARAMS = {'SVM__C': 15.0, 'SVM__class_weight': 'balanced', 'SVM__dual': False,
+SVM_PARAMS = {
+              'SVM__C': 1.0,
+              # 'SVM__C': 15.0,
+              'SVM__class_weight': 'balanced',
+              'SVM__dual': False,
               'SVM__loss': 'squared_hinge', 'SVM__penalty': 'l1', 'TFIDF__ngram_range': (1, 4),
               'TFIDF__tokenizer': tokenizer4, 'TFIDF__use_idf': True}
 MODE = 'svm'
@@ -73,7 +77,6 @@ if __name__ == '__main__':
     splits = pseudo_cv_groups(X, y, groups)
 
     X_preprocessed = preprocess_data(X, MODE)
-
     info = []
     idx = 0
     for train_inds, test_inds in splits:
@@ -81,11 +84,14 @@ if __name__ == '__main__':
         Xtrain, Xtest, ytrain, ytest = X_preprocessed[train_inds], X_preprocessed[test_inds], y[train_inds], y[test_inds]
         clf = get_clf(MODE)
         clf.fit(Xtrain, ytrain)
-        ypred = clf.predict_proba(Xtest)[:, 1]
+        # ypred = clf.predict_proba(Xtest)[:, 1]
+        ypred = clf.decision_function(Xtest)
+
         try:
+            print(ypred[:3])
             perfs['roc_auc'] = roc_auc_score(ytest, ypred)
         except ValueError:
             perfs['roc_auc'] = None
         info.append(perfs)
         idx += 1
-    pd.DataFrame(info).to_csv('best_model_protvec_cross_validation.csv', sep='\t')
+    pd.DataFrame(info).to_csv('best_model_allerdictor_cross_validation.csv', sep='\t')
