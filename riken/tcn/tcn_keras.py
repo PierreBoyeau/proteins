@@ -30,10 +30,12 @@ PARAMS = {
 }
 
 
-def residual_block(inp, dilatation, kernel_size, n_filters, dropout_rate, do1conv=True):
+def residual_block(inp, dilatation, kernel_size, n_filters, dropout_rate, activation,
+                   kernel_initializer, do1conv=True):
     conv = inp
     for _ in range(2):
-        conv = Conv1D(n_filters, kernel_size=kernel_size, dilation_rate=dilatation, padding='causal')(conv)
+        conv = Conv1D(n_filters, kernel_size=kernel_size, dilation_rate=dilatation, padding='causal',
+                      activation=activation, kernel_initializer=kernel_initializer)(conv)
         # here do weight norm (later)
         # instead here use of batch norm because already implemented
         conv = BatchNormalization()(conv)
@@ -50,7 +52,8 @@ def residual_block(inp, dilatation, kernel_size, n_filters, dropout_rate, do1con
 
 
 def tcn_model(n_classes, depth, n_filters, kernel_size, dropout_rate=0.0, optim=Adam(), 
-              maxlen=500, trainable_embeddings=False):
+              maxlen=500, activation='relu', kernel_initializer='glorot_uniform',
+              trainable_embeddings=False):
     aa_ind = Input(shape=(maxlen,), name='aa_indice')
     h = get_embeddings(aa_ind, trainable_embeddings=trainable_embeddings)
 
@@ -61,8 +64,8 @@ def tcn_model(n_classes, depth, n_filters, kernel_size, dropout_rate=0.0, optim=
         # 1conv done only first layer (elsewhere number of filters stays the same
         do1conv = (it == 0)
         h = residual_block(h, dilatation=2**it, n_filters=n_filters, kernel_size=kernel_size,
-                           dropout_rate=dropout_rate,
-                           do1conv=do1conv)
+                           dropout_rate=dropout_rate, activation=activation,
+                           kernel_initializer=kernel_initializer, do1conv=do1conv)
     attention = Dense(1)(h)
     attention = Lambda(lambda x: K.squeeze(x, axis=2))(attention)
     attention = Activation(activation='softmax')(attention)
