@@ -79,6 +79,42 @@ def get_seqrecord(elem):
                      id=str(elem.name), name=str(elem.name))
 
 
+def read_epitopes_data(path='/home/pierre/riken/data/riken_data/epitopes.xlsx'):
+    allergenid_to_allergen_idx = (pd.read_excel(path, sheet_name='allergen2017')
+        # .drop_duplicates(subset=['allergenid'])
+                                  )
+    epitopes_to_allergid = pd.read_excel(path, sheet_name='epitope2017')
+    epitopes_to_seq = pd.read_excel(path, sheet_name='epitopeseq2017')
+
+    epitopes_df = (
+        pd.merge(left=epitopes_to_allergid, right=allergenid_to_allergen_idx, on='allergenid',
+                 how='left')
+        .merge(right=epitopes_to_seq, how='right', on='epitopeid'))
+
+    id_cols = ['uniprot', 'original_ref', 'OtherProtACC', 'NCBI_taxID']
+    epitopes_df.loc[:, id_cols] = epitopes_df[id_cols].apply(lambda x: x.astype(str).str.lower())
+    return epitopes_df
+
+
+def get_epitopes_masks(dataf, epitopes_dataf):
+    def _get_masks(data_protein):
+        orig_idx = data_protein.original_index.values[0]
+        seq = data_protein.sequences.values[0]
+        starts, ends = data_protein.start, data_protein.end
+        mask = -1.0 * np.ones(shape=len(seq))
+
+        for begin, end in zip(starts, ends):
+            mask[begin:end] = 1.0
+        return pd.Series({'original_index': orig_idx, 'mask': mask})
+
+    df_cp = dataf.assign(
+        trunc_index=lambda x: [elem[0] for elem in x.index.str.split('.', expand=True).values],
+        original_index=lambda x: x.index.values)
+
+    merged = pd.merge(epitopes_dataf, df_cp, left_on='uniprot', right_on='trunc_index')
+    return merged.groupby('allergenid').apply(_get_masks)
+
+
 def offline_data_augmentation(indices_sequences, labels, switch_matrix, nb_aug=10):
     """
     Please refer to riken/riken/nn_utils/data_augmentation.py for more extensive explanation
