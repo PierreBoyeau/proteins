@@ -32,6 +32,7 @@ def _parse_function(example_proto, max_size, pssm_nb_f=42):
 
 def input_fn(path, max_size, epochs, batch_size, shuffle=True, drop_remainder=False):
     """
+    REQUIRES tf>=1.10 !
     Create tf.Dataset object for training tf model
     :param path: path to records
     :param epochs: nb of epochs
@@ -51,10 +52,29 @@ def input_fn(path, max_size, epochs, batch_size, shuffle=True, drop_remainder=Fa
 
 
 def train_input_fn(path, max_size, epochs, batch_size, drop_remainder=False):
+    """
+    REQUIRES tf>=1.10 !
+    Generates train iterator
+    :param path:
+    :param max_size:
+    :param epochs:
+    :param batch_size:
+    :param drop_remainder:
+    :return:
+    """
     return input_fn(path, max_size=max_size, batch_size=batch_size, epochs=epochs,
                     drop_remainder=drop_remainder)
 
 
 def eval_input_fn(path, max_size, batch_size, drop_remainder=False):
+    """
+    REQUIRES tf>=1.10 !
+    Generates eval iterator
+    :param path:
+    :param max_size:
+    :param batch_size:
+    :param drop_remainder:
+    :return:
+    """
     return input_fn(path, max_size=max_size, batch_size=batch_size, epochs=1, shuffle=False,
                     drop_remainder=drop_remainder)

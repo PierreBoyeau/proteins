@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 """
-File that deals with assigning features to amino acids/proteins
+    File that deals with assigning features to amino acids/proteins
 """
 
 HYDROPATHS = {
@@ -92,6 +92,7 @@ def create_overall_static_aa_mat_feature_selection(normalize=True):
     if normalize:
         res_mat = (res_mat - res_mat.mean(axis=0)) / res_mat.std(axis=0)
     return res_mat
+
 
 def create_blosom_80_mat():
     """

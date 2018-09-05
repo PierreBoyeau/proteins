@@ -3,13 +3,36 @@ import pandas as pd
 
 RANDOM_STATE = 42
 
+"""
+    Contains functions used to do datasets splits, like train/test or cross validation.
+    group-specific functions can take into accounts appartenance to groups, like species in order
+    to avoid to have very similar proteins in both train and test splits.
+"""
+
 
 def group_shuffle_indices(X, y, groups=None, test_size=0.2, **kwargs):
+    """
+    Train/Test split by taking groups into account.
+    :param X:
+    :param y:
+    :param groups:
+    :param test_size:
+    :param kwargs:
+    :return:
+    """
     return next(GroupShuffleSplit(random_state=RANDOM_STATE, test_size=test_size, **kwargs)
                 .split(X, y, groups))
 
 
 def shuffle_indices(X, y, groups=None, **kwargs):
+    """
+    Usual Train/Test shuffle split.
+    :param X:
+    :param y:
+    :param groups:
+    :param kwargs:
+    :return:
+    """
     return next(ShuffleSplit(random_state=RANDOM_STATE, test_size=0.2, **kwargs)
                 .split(X, y, groups))
 

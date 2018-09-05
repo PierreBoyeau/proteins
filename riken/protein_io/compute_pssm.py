@@ -10,6 +10,13 @@ from dask.multiprocessing import get
 
 from riken.protein_io.reader import get_seqrecord
 
+"""
+    Script used to generate PSIBLAST's PSSM features for proteins contained in a tab-separated 
+    CSV file.
+    To be faster, this is done with parallel threads.
+"""
+
+
 COMMAND = "psiblast -db {db} \
 -evalue 0.001 \
 -query {query_path} \
@@ -61,8 +68,6 @@ def protein_routine(ptn):
 if __name__ == '__main__':
     args = parse_args()
     df = pd.read_csv(args.data_path, sep='\t')
-    # df.apply(protein_routine, axis=1)
-
     ddata = dd.from_pandas(df, npartitions=args.jobs)
-    res = ddata.map_partitions(lambda df: df.apply((lambda row: protein_routine(row)), axis=1))\
+    res = ddata.map_partitions(lambda x: x.apply((lambda row: protein_routine(row)), axis=1))\
         .compute(get=get)
