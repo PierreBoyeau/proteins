@@ -1,2 +1,0 @@
-ssh duy@fox1.ics.nitech.ac.jp
-
