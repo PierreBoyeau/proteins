@@ -28,4 +28,19 @@ Folders that contain protein datasets:
 
 `spp_sequence_ver2` is a copy of the C++ code given to me by Takuto-san.
 
-## III. Use cases
+## III. Install
+Everything described here has been done with Ubuntu 16.06. 
+
+1. Copy or clone this project via Github using:
+    ```bash
+    git clone https://github.com/PierreBoyeau/riken.git
+    ```
+
+2. Run `install.sh`. In this script we used extensively Anaconda (which you can install [here](https://www.anaconda.com/download)) but can easily be done manually using pip.
+Just ensure that you use Python 3! 
+
+3. (Optional) If you want to generate PSIBLAST features, you will need to install the BLAST+ standalone software. Go [there](https://www.ncbi.nlm.nih.gov/books/NBK52640/) for instructions.
+## IV. Use cases
+
+### A. Recurrent Neural Networks
+Most techniques described here can be done in the same way with TCN (Temporal Convolution Networks) that we also experimented but that did not show as much potential as RNN in the `riken`
