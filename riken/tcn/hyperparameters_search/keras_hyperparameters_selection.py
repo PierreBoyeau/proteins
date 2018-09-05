@@ -1,7 +1,7 @@
-from riken.rnn.rnn_keras_with_psiblast import *
-
+import numpy as np
+from riken.tcn.tcn_keras import *
 from keras.optimizers import SGD, RMSprop
-from keras.callbacks import  EarlyStopping
+from keras.callbacks import EarlyStopping
 from sklearn.model_selection import ParameterSampler
 from sklearn.metrics import roc_auc_score
 import time
@@ -9,18 +9,6 @@ import time
 import tensorflow as tf
 
 flags = tf.flags
-
-
-def generate_configs():
-    depth = np.random.randint(1, 4)
-    if depth == 1:
-        n_filters = np.random.randint(10, 101)
-        kernel_size = np.random.choice([1, 3, 5, 7, 9])
-    else:
-        n_filters = np.random.randint(10, 101, depth).tolist()
-        kernel_size = np.random.choice([1, 3, 5, 7, 9], depth).tolist()
-    return {"n_filters": n_filters, "kernel_size": kernel_size}
-
 
 if __name__ == '__main__':
     flags.DEFINE_string('result_path', default=None, help='Name of layer to use for transfer')
@@ -35,13 +23,8 @@ if __name__ == '__main__':
     PSSM_FORMAT_FILE = '/home/pierre/riken/data/psiblast/riken_data_v2/{}_pssm.txt'
     INDEX_COL = 0
 
-    config = tf.ConfigProto()
-    config.gpu_options.per_process_gpu_memory_fraction = 0.45
-    K.set_session(tf.Session(config=config))
-
     df = pd.read_csv(DATA_PATH, sep='\t', index_col=INDEX_COL).dropna()
     df = df.loc[df.seq_len >= 50, :]
-
     sequences, y = df['sequences'].values, df[KEY_TO_PREDICT]
     y = pd.get_dummies(y).values
     X = pad_sequences([[prot_features.safe_char_to_idx(char) for char in sequence]
@@ -72,20 +55,17 @@ if __name__ == '__main__':
     print('{} trainval examples and {} val examples'.format(len(trainval_inds), len(val_inds)))
 
     grid_params = {
-        'n_classes': [2],
-        # 'n_filters': np.arange(25, 100),
-        # 'kernel_size': [3, 4, 5, 6],
-        'conv_params': [generate_configs() for _ in range(3000)],
-        'activation': ['relu', 'selu', 'tanh'],
-        'n_cells': np.arange(8, 32),
-        'trainable_embeddings': [True, False],
-        'dropout_rate': np.linspace(0.1, 0.5, 10),
-        'conv_kernel_initializer': ['glorot_uniform', 'glorot_normal'],
-        'lstm_kernel_initializer': ['glorot_uniform', 'glorot_normal'],
-
-        'batch_size': np.arange(32, 100),
+        'depth': [6, 7, 8, 9],
+        'n_filters': np.arange(5, 50),
+        'kernel_size': [5, 7, 9],
+        'dropout_rate': [0.05, 0.1, 0.2, 0.25, 0.3, 0.5],
         'optim': [Adam, RMSprop, SGD],
-        'lr': [1e-1, 1e-2, 1e-3]
+        'lr': [1e-1, 1e-2, 1e-3],
+        'maxlen': [500],
+        'batch_size': np.linspace(30, 150, num=50, dtype=int),
+        'activation': ['tanh', 'relu', 'selu'],
+        'kernel_initializer': ['glorot_uniform', 'glorot_normal'],
+        'trainable_embeddings': [True, False],
     }
 
     grid = ParameterSampler(grid_params, n_iter=10000)
@@ -93,17 +73,11 @@ if __name__ == '__main__':
     for param in grid:
         try:
             print(param)
-
             lr = param.pop('lr')
             optim_fn = param.pop('optim')
             param['optim'] = optim_fn(lr)
-
-            conv_params = param.pop('conv_params')
-            param['n_filters'] = conv_params['n_filters']
-            param['kernel_size'] = conv_params['kernel_size']
-
             batch_size = param.pop('batch_size')
-            mdl = rnn_model_attention_psiblast(**param)
+            mdl = tcn_model(n_classes=2, **param)
             callback = EarlyStopping(patience=5)
 
             history = mdl.fit([Xtrainval, pssm_trainval], ytrainval, batch_size=batch_size,

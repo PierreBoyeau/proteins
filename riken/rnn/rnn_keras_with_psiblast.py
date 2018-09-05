@@ -80,7 +80,6 @@ def get_embeddings(inp, trainable_embeddings=False):
     """
     embed = Embedding(len(ONEHOT_M), output_dim=n_chars + 1, weights=[ONEHOT_M],
                       trainable=trainable_embeddings, dtype='float32')(inp)
-
     static_embed = Embedding(STATIC_AA_TO_FEAT_M.shape[0], output_dim=STATIC_AA_TO_FEAT_M.shape[1],
                              weights=[STATIC_AA_TO_FEAT_M],
                              trainable=trainable_embeddings, dtype='float32')(inp)
@@ -99,8 +98,18 @@ def rnn_model_attention_psiblast(n_classes, n_filters=50, kernel_size=3, activat
     psiblast_prop = Input(shape=(maxlen, 42), name='psiblast_prop', dtype=np.float32)
 
     h = Concatenate()([h, psiblast_prop])
-    h = Conv1D(n_filters, kernel_size=kernel_size, activation=activation, padding='same',
-               kernel_initializer=conv_kernel_initializer)(h)
+
+    if isinstance(kernel_size, list):
+        assert isinstance(n_filters, list)
+        assert len(kernel_size) == len(n_filters)
+        for k_sz, n_fil in zip(kernel_size, n_filters):
+            h = Conv1D(n_fil, kernel_size=k_sz, activation=activation, padding='same',
+                       kernel_initializer=conv_kernel_initializer)(h)
+    else:
+        n_filters = int(n_filters)
+        kernel_size = int(kernel_size)
+        h = Conv1D(n_filters, kernel_size=kernel_size, activation=activation, padding='same',
+                   kernel_initializer=conv_kernel_initializer)(h)
 
     h = Dropout(rate=dropout_rate)(h)
     h = Bidirectional(CuDNNLSTM(n_cells, return_sequences=True,
