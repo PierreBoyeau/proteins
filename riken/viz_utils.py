@@ -30,9 +30,10 @@ def to_2d_array(arr, ncols):
     return np.array(arr2d)
 
 
-def visualize_attention_2d(sequence, attention, ncols=50):
+def visualize_attention_2d(sequence, attention, ncols=50, ax=None):
     heatmap_2d = to_2d_array(attention, ncols=ncols)
     nrows, ncols = heatmap_2d.shape
     str_2d = to_2d_array(sequence, ncols=ncols)
-    ax = sns.heatmap(data=heatmap_2d, annot=str_2d, fmt='', xticklabels=False, yticklabels=False)
+    ax = sns.heatmap(data=heatmap_2d, annot=str_2d, fmt='', xticklabels=False, yticklabels=False,
+                     ax=ax)
     return ax
