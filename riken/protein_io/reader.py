@@ -83,7 +83,10 @@ def get_seqrecord(elem):
 
 
 def read_epitopes_data(path='/home/pierre/riken/data/riken_data/epitopes.xlsx'):
-    allergenid_to_allergen_idx = (pd.read_excel(path, sheet_name='allergen2017'))
+    allergenid_to_allergen_idx = (pd.read_excel(path, sheet_name='allergen2017')
+                                  .assign(EMBL=lambda x:
+                                          x.description.str.extract(r'EMBL:([a-zA-Z0-9.]*)'))
+                                  )
     epitopes_to_allergid = pd.read_excel(path, sheet_name='epitope2017')
     epitopes_to_seq = pd.read_excel(path, sheet_name='epitopeseq2017')
 
@@ -92,7 +95,7 @@ def read_epitopes_data(path='/home/pierre/riken/data/riken_data/epitopes.xlsx'):
                  how='left')
         .merge(right=epitopes_to_seq, how='right', on='epitopeid'))
 
-    id_cols = ['uniprot', 'original_ref', 'OtherProtACC', 'NCBI_taxID']
+    id_cols = ['uniprot', 'original_ref', 'OtherProtACC', 'NCBI_taxID', 'EMBL']
     epitopes_df.loc[:, id_cols] = epitopes_df[id_cols].apply(lambda x: x.astype(str).str.lower())
     return epitopes_df
 
