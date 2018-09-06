@@ -6,7 +6,8 @@ from tensorflow import flags
 import tensorflow as tf
 from keras.preprocessing.sequence import pad_sequences
 from keras.models import load_model, Input
-from keras.layers import Embedding, Bidirectional, Dense, Dropout, CuDNNLSTM, Conv1D
+from keras.layers import Embedding, Bidirectional, Dense, Dropout, Conv1D, Masking
+from keras.layers import CuDNNLSTM, LSTM
 from keras.layers import Activation, Permute, Multiply, RepeatVector, Lambda, Concatenate
 import keras.backend as K
 from keras.models import Model
@@ -33,11 +34,27 @@ MAXLEN = 500
 LR = 1e-3
 
 # PARAMS = dict()
+# PARAMS = {
+#     'activation': 'tanh',
+#     'conv_kernel_initializer': 'glorot_uniform',
+#     'dropout_rate': 0.3222222222,
+#     'kernel_size': 6,
+#     'lstm_kernel_initializer': 'glorot_normal',
+#     'n_cells': 25,
+#     'n_filters': 79,
+#     'nb_epochs': 13,
+#     'optim': RMSprop(),
+#     # 'test_score': 0.9741247995,
+#     'trainable_embeddings': False,
+#     'batch_size': 85
+# }
+
+## BEST MODEL 2
 PARAMS = {
     'activation': 'tanh',
     'conv_kernel_initializer': 'glorot_uniform',
     'dropout_rate': 0.3222222222,
-    'kernel_size': 6,
+    'kernel_size': 5,
     'lstm_kernel_initializer': 'glorot_normal',
     'n_cells': 25,
     'n_filters': 79,
@@ -88,8 +105,8 @@ def get_embeddings(inp, trainable_embeddings=False):
 
 
 def rnn_model_attention_psiblast(n_classes, n_filters=50, kernel_size=3, activation='relu',
-                                 n_cells=16, trainable_embeddings=False, dropout_rate=0.5,
-                                 conv_kernel_initializer='glorot_uniform',
+                                 rnn_model = CuDNNLSTM, n_cells=16, trainable_embeddings=False,
+                                 dropout_rate=0.5, conv_kernel_initializer='glorot_uniform',
                                  lstm_kernel_initializer='glorot_uniform', optim=Adam(lr=1e-3),
                                  maxlen=MAXLEN):
     aa_ind = Input(shape=(maxlen,), name='aa_indice')
@@ -112,8 +129,11 @@ def rnn_model_attention_psiblast(n_classes, n_filters=50, kernel_size=3, activat
                    kernel_initializer=conv_kernel_initializer)(h)
 
     h = Dropout(rate=dropout_rate)(h)
-    h = Bidirectional(CuDNNLSTM(n_cells, return_sequences=True,
-                                kernel_initializer=lstm_kernel_initializer))(h)
+    if rnn_model is not CuDNNLSTM:
+        h = Masking(mask_value=0.0)(h)
+    h = Bidirectional(
+        rnn_model(n_cells, return_sequences=True, kernel_initializer=lstm_kernel_initializer)
+    )(h)
 
     attention = Dense(1)(h)
     attention = Lambda(lambda x: K.squeeze(x, axis=2))(attention)
