@@ -2,6 +2,7 @@ from riken.rnn.rnn_keras_with_psiblast import *
 
 from keras.optimizers import SGD, RMSprop
 from keras.callbacks import  EarlyStopping
+from keras.layers import LSTM, GRU
 from sklearn.model_selection import ParameterSampler
 from sklearn.metrics import roc_auc_score
 import time
@@ -27,6 +28,8 @@ if __name__ == '__main__':
     FLAGS = flags.FLAGS
 
     RESULTS_PATH = FLAGS.result_path
+    if RESULTS_PATH is None:
+        raise ValueError('Please give a path')
     RANDOM_STATE = 42
     MAXLEN = 500
     DATA_PATH = '/home/pierre/riken/data/riken_data/complete_from_xlsx_v2COMPLETE.tsv'
@@ -73,15 +76,25 @@ if __name__ == '__main__':
 
     grid_params = {
         'n_classes': [2],
-        # 'n_filters': np.arange(25, 100),
-        # 'kernel_size': [3, 4, 5, 6],
-        'conv_params': [generate_configs() for _ in range(3000)],
-        'activation': ['relu', 'selu', 'tanh'],
+        #MODE1
+        'n_filters': np.arange(5, 101),
+        'kernel_size': [3, 5, 7],
+
+        #MODE2
+        # 'conv_params': [generate_configs() for _ in range(3000)],
+
+        'rnn_model': [GRU, LSTM],
+
+        'activation': ['relu', 'selu', 'tanh', 'elu'],
         'n_cells': np.arange(8, 32),
-        'trainable_embeddings': [True, False],
+        'trainable_embeddings': [False],  #[True, False],
         'dropout_rate': np.linspace(0.1, 0.5, 10),
-        'conv_kernel_initializer': ['glorot_uniform', 'glorot_normal'],
-        'lstm_kernel_initializer': ['glorot_uniform', 'glorot_normal'],
+        'conv_kernel_initializer': ['glorot_uniform', 'glorot_normal',
+                                    'lecun_uniform', 'lecun_normal',
+                                    'he_uniform', 'he_normal'],
+        'lstm_kernel_initializer': ['glorot_uniform', 'glorot_normal',
+                                    'lecun_uniform', 'lecun_normal',
+                                    'he_uniform', 'he_normal'],
 
         'batch_size': np.arange(32, 100),
         'optim': [Adam, RMSprop, SGD],
@@ -98,9 +111,9 @@ if __name__ == '__main__':
             optim_fn = param.pop('optim')
             param['optim'] = optim_fn(lr)
 
-            conv_params = param.pop('conv_params')
-            param['n_filters'] = conv_params['n_filters']
-            param['kernel_size'] = conv_params['kernel_size']
+            # conv_params = param.pop('conv_params')
+            # param['n_filters'] = conv_params['n_filters']
+            # param['kernel_size'] = conv_params['kernel_size']
 
             batch_size = param.pop('batch_size')
             mdl = rnn_model_attention_psiblast(**param)
