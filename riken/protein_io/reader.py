@@ -4,6 +4,8 @@ from Bio import SeqIO
 from Bio.Alphabet import IUPAC
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
+from joblib import Parallel, delayed
+import multiprocessing
 from tqdm import tqdm
 
 """
@@ -80,9 +82,7 @@ def get_seqrecord(elem):
 
 
 def read_epitopes_data(path='/home/pierre/riken/data/riken_data/epitopes.xlsx'):
-    allergenid_to_allergen_idx = (pd.read_excel(path, sheet_name='allergen2017')
-        # .drop_duplicates(subset=['allergenid'])
-                                  )
+    allergenid_to_allergen_idx = (pd.read_excel(path, sheet_name='allergen2017'))
     epitopes_to_allergid = pd.read_excel(path, sheet_name='epitope2017')
     epitopes_to_seq = pd.read_excel(path, sheet_name='epitopeseq2017')
 
@@ -97,6 +97,12 @@ def read_epitopes_data(path='/home/pierre/riken/data/riken_data/epitopes.xlsx'):
 
 
 def get_epitopes_masks(dataf, epitopes_dataf):
+    """
+    Get masks based on begin/end labels of epitopes position given in epitopes_dataf
+    :param dataf:
+    :param epitopes_dataf:
+    :return:
+    """
     def _get_masks(data_protein):
         orig_idx = data_protein.original_index.values[0]
         seq = data_protein.sequences.values[0]
@@ -113,6 +119,29 @@ def get_epitopes_masks(dataf, epitopes_dataf):
 
     merged = pd.merge(epitopes_dataf, df_cp, left_on='uniprot', right_on='trunc_index')
     return merged.groupby('allergenid').apply(_get_masks)
+
+
+def get_mask_from_epitopes_seqs(protein_seq, epitopes_ser):
+    """
+    Manually computes masks based on epitope SEQUENCES
+    :param protein_seq:
+    :param epitopes_ser:
+    :return:
+    """
+    mask = np.zeros(len(protein_seq), dtype=np.float32)
+
+    def _iter_routine(seq):
+        starts_stops = [m.span() for m in re.finditer(pattern=seq,
+                                                      string=protein_seq)]
+        return starts_stops
+
+    num_cores = multiprocessing.cpu_count()
+    beg_end = Parallel(n_jobs=num_cores)(delayed(_iter_routine)(seq) for seq in epitopes_ser)
+    beg_end = [tup for li in beg_end for tup in li]
+
+    for beg, end in beg_end:
+        mask[beg:end] = 1.0
+    return mask
 
 
 def offline_data_augmentation(indices_sequences, labels, switch_matrix, nb_aug=10):
