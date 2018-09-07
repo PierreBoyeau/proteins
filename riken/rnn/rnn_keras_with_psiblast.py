@@ -105,7 +105,7 @@ def get_embeddings(inp, trainable_embeddings=False):
 
 
 def rnn_model_attention_psiblast(n_classes, n_filters=50, kernel_size=3, activation='relu',
-                                 rnn_model = CuDNNLSTM, n_cells=16, trainable_embeddings=False,
+                                 rnn_model=CuDNNLSTM, n_cells=16, trainable_embeddings=False,
                                  dropout_rate=0.5, conv_kernel_initializer='glorot_uniform',
                                  lstm_kernel_initializer='glorot_uniform', optim=Adam(lr=1e-3),
                                  maxlen=MAXLEN):
