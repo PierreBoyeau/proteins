@@ -7,6 +7,8 @@ pip install --upgrade pip
 
 
 pip install editdistance
+pip install xlrd
+pip install joblib
 conda install --yes pandas numpy seaborn scikit-learn tqdm
 pip install --upgrade gensim
 pip install biopython
