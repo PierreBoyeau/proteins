@@ -202,7 +202,7 @@ def parse_args():
     my_args.add_argument('-layer_name', type=str, default='lambda_2',
                          help='Name of layer to use for transfer if transfer_path is not None')
     my_args.add_argument('-groups', type=str, default='NO', help='should we use groups')
-    my_args.add_argument('index_col', type=int, default=None, help='index_col in csv')
+    my_args.add_argument('-index_col', type=int, default=None, help='index_col in csv')
     return my_args.parse_args()
 
 
