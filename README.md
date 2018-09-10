@@ -53,6 +53,13 @@ Everything described here has been done with Ubuntu 16.06.
 2. Run `install.sh`. In this script we used extensively Anaconda (which you can install [here](https://www.anaconda.com/download)) but can easily be done manually using pip.
 Just ensure that you use Python 3! 
 
+2. **Important!!**: Update your `PYTHONPATH` variable. On unix-based machines (like NIC/Riken servers), 
+execute the following command:
+        ```bash
+        export PYTHONPATH="/home/YOUR_USER_NAME/riken:$PYTHONPATH"
+        ```
+where `YOUR_USER_NAME` is your name on the **machine that will execute the scripts** (e.g. RIKEN or NIC server).
+
 3. (Optional) If you want to generate PSIBLAST features, you will need to install the BLAST+ standalone software. Go [there](https://www.ncbi.nlm.nih.gov/books/NBK52640/) for instructions.
 ## IV. Use cases
 
@@ -67,8 +74,6 @@ This architecture takes two inputs:
 1. amino-acids sequences. We extract features from this info. First, we extract One-Hot representation of amino-acids. 
 We also get physico-chemical properties of amino-acids from several sources.
 
-
-
 1. dynamic representation of amino-acids (`psiblast_prop`). We also need the PSIBLAST-PSSM representations of sequences to be computed and stored locally for RNN scripts to work efficiently.
 
 More information on motivations and problem definition can be found in the memo.
@@ -76,23 +81,40 @@ More information on motivations and problem definition can be found in the memo.
 
 Now, let's describe what you can do:
 
-- To train a model with specified parameters, save it and evaluate model performance on test data:
+- **Classical training**: To train a model with specified parameters, save it and evaluate model performance on test data:
 ```bash
 python rnn_keras_with_psiblast.py -data_path ~/riken/data/riken_data/complete_from_xlsx_v2COMPLETE.tsv \
 -pssm_format_file ~/riken/data/psiblast/riken_data_v2/{}_pssm.txt \
 -key_to_predict is_allergenic \
 -index_col 0 \
--groups predefined
+-groups predefined \
+-log_dir experiment1
+
 ```
 
 
 To have more information on what each parameter is used for, just type `python rnn_keras_with_psiblast.py --help`
 
+- **Transfer Learning**: 2018/08/27 meeting with biologists showed that transfer learning based on clan prediction
+was not a good idea. That being said, transfer learning in an unsupervised fashion (using Autoencoder) for instance
+can be interesting.
+For such purposes, you can also use `nn_keras_with_psiblast.py` to do so. Let's imagine you have trained an autoencoder (LSTM based for instance). 
+By selecting a meaningful layer output of the Autoencoder, you can apply transfer learning using the command:
+```bash
+python rnn_keras_with_psiblast.py -data_path ~/riken/data/riken_data/complete_from_xlsx_v2COMPLETE.tsv \
+-pssm_format_file ~/riken/data/psiblast/riken_data_v2/{}_pssm.txt \
+-key_to_predict is_allergenic \
+-index_col 0 \
+-groups predefined \
+-log_dir autoencoder_folder \
+-transfer_path autoencoder_folder/trained_autoencoder_weights.hdf5 \
+-layer_name meaningful_layer_name
+```
 
-- `rnn_cross_validation.py` is used to establish RNN model performance using a 10-fold species-specific cross-validation criteria.
+- **Cross-Validation**: `rnn_cross_validation.py` is used to establish RNN model performance using a 10-fold species-specific cross-validation criteria.
 
 
-- You can use `model_psiblast_eval.ipynb` to dynamically study an already trained model (using `rnn_keras_with_psiblast.py`).
+- **Trained Model performance and attention study**: You can use `model_psiblast_eval.ipynb` to dynamically study an already trained model (using `rnn_keras_with_psiblast.py`).
 In this notebook, you can plot ROC curves and visualize attention weights, in order to extract allergens motifs.
 
 
@@ -101,7 +123,14 @@ In this notebook, you can plot ROC curves and visualize attention weights, in or
 Just note that you should use griffin server (the only one with GPU support)
 
 - If you use RIKEN raiden, note that you cannot directly execute the command. You must **submit**
-you task to the server using a script like `server/script_example.sh`
+you task to the server using a script like `server/script_example.sh`. **Important**: please make sure
+to replace `pierre` by your username in the line: `export PYTHONPATH="/home/pierre/riken:$PYTHONPATH"
+`
+
+- DON'T EXECUTE THIS SCRIPT directly in the console. To submit the script to the server, 
+execute instead `qsub script_example.sh`. To see the status of your jobs, execute `qstat`.
+
+    Refer to Riken RAIDEN doc for more info.
 
 Please note you can find doc about how riken servers work in `riken/doc`
 
@@ -121,3 +150,8 @@ As usual, run `python compute_pssm.py --help` for more guidelines.
 First experiments (Word2Vec/Allerdictor based) all are contained in `riken/word2vec`.
 The most important file is `mdl_cross_validation.py`. This file allows you to get the **allerdictor** (`mode==svm`)
 and **Word2Vec**(`mode=word2vec`) cross-validated performance
+
+## V. Remarks and warnings
+
+- To import data, this project assumed that this project folder was located in `/home/pierre`. If at some point
+you have some `FileNotFoundError`, make sure that said path exist on your machine, and if not just modify the code.
