@@ -121,7 +121,8 @@ def get_epitopes_masks(dataf, epitopes_dataf):
         trunc_index=lambda x: [elem[0] for elem in x.index.str.split('.', expand=True).values],
         original_index=lambda x: x.index.values)
 
-    merged = pd.merge(epitopes_dataf, df_cp, left_on='uniprot', right_on='trunc_index')
+    # merged = pd.merge(epitopes_dataf, df_cp, left_on='uniprot', right_on='trunc_index')
+    merged = pd.merge(epitopes_dataf, df_cp, left_on='EMBL', right_index=True)
     return merged.groupby('allergenid').apply(_get_masks)
 
 
