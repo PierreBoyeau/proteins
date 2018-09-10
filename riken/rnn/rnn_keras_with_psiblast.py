@@ -137,7 +137,14 @@ def rnn_model_attention_psiblast(n_classes, n_filters=50, kernel_size=3, activat
 
     attention = Dense(1)(h)
     attention = Lambda(lambda x: K.squeeze(x, axis=2))(attention)
-    attention = Activation(activation='softmax')(attention)
+    # Original attention mecanism
+    # attention = Activation(activation='softmax')(attention)
+
+    # New attention mecanism
+    attention = Lambda(lambda x: K.tanh(x))(attention)
+    attention = Lambda(lambda x: K.maximum(x, 0.0))(attention)
+    attention = Lambda(lambda x: x / (1e-3 + K.sum(x, axis=1, keepdims=True)))(attention)
+
     attention = RepeatVector(int(2*n_cells))(attention)
     attention = Permute((2, 1))(attention)
 
@@ -204,6 +211,7 @@ if __name__ == '__main__':
 
     df = pd.read_csv(args.data_path, sep='\t', index_col=args.index_col).dropna()
     df = df.loc[df.seq_len >= 50, :]
+    # df = df[:3000]
 
     sequences, y = df['sequences'].values, df[args.key_to_predict]
     y = pd.get_dummies(y).values
