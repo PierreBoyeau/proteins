@@ -1,3 +1,4 @@
+import argparse
 import os
 import numpy as np
 import pandas as pd
@@ -185,19 +186,24 @@ def transfer_model(n_classes_new, mdl_path, prev_model_output_layer='lambda_2', 
 
 
 def parse_args():
-    flags.DEFINE_float('lr', default=1e-3, help='learning rate')
-    flags.DEFINE_string('data_path',
-                        default='/home/pierre/riken/data/swiss/swiss_with_clans.tsv',
-                        help='path to tsv data')
-    flags.DEFINE_string('pssm_format_file', default='', help='pssm_format_file')
-    flags.DEFINE_string('key_to_predict', default='is_allergenic', help='key to predict (y)')
-    flags.DEFINE_string('log_dir', default='./logs', help='path to save ckpt and summaries')
-    flags.DEFINE_string('transfer_path', default=None,
-                        help='path to ckpt if doing transfer learning')
-    flags.DEFINE_string('layer_name', default=None, help='Name of layer to use for transfer')
-    flags.DEFINE_string('groups', default='NO', help='should we use groups')
-    flags.DEFINE_integer('index_col', default=None, help='index_col in csv')
-    return flags.FLAGS
+    my_args = argparse.ArgumentParser()
+    my_args.add_argument('-data_path', type=str,
+                         default='/home/pierre/riken/data/swiss/swiss_with_clans.tsv',
+                         help='path to tsv data')
+    my_args.add_argument('-pssm_format_file', type=str,
+                         help='pssm_format_file, with the form PATH_TO/{}_pssm.txt where {} contain'
+                              'protein index')
+    my_args.add_argument('-key_to_predict', default='is_allergenic', help='key to predict (y)',
+                         type=str)
+    my_args.add_argument('-log_dir', default='./logs', help='path to save ckpt and summaries',
+                         type=str)
+    my_args.add_argument('-transfer_path', default=None,
+                         help='path to ckpt if doing transfer learning', type=str)
+    my_args.add_argument('-layer_name', type=str, default='lambda_2',
+                         help='Name of layer to use for transfer if transfer_path is not None')
+    my_args.add_argument('-groups', type=str, default='NO', help='should we use groups')
+    my_args.add_argument('index_col', type=int, default=None, help='index_col in csv')
+    return my_args.parse_args()
 
 
 if __name__ == '__main__':
@@ -230,7 +236,8 @@ if __name__ == '__main__':
     pssm_train, pssm_test = pssm[train_inds], pssm[test_inds]
 
     model = rnn_model_attention_psiblast(n_classes=y.shape[1], **PARAMS) if args.transfer_path is None \
-        else transfer_model(y.shape[1], args.transfer_path, dropout_rate=0.3)
+        else transfer_model(y.shape[1], args.transfer_path, dropout_rate=0.3,
+                            prev_model_output_layer=args.layer_name)
     print(model.summary())
 
     tb = TensorBoard(log_dir=args.log_dir)
