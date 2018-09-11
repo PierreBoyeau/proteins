@@ -1,11 +1,10 @@
 from functools import partial
 import argparse
 import tensorflow as tf
-from tensorflow.python import debug as tf_debug
 
 from riken.nn_utils.io_tools import train_input_fn, eval_input_fn
 from riken.protein_io.prot_features import chars
-from riken.rnn import rnn_model
+from rnn.tf import rnn_model
 
 """
 python autoencoder_trainer.py -train_path records/riken_data_v2_l1000_post_train.tfrecords \

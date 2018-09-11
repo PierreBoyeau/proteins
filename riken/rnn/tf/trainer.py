@@ -2,10 +2,9 @@ from functools import partial
 from tensorflow import flags
 import tensorflow as tf
 from tensorflow.python import debug as tf_debug
-from tensorboard.plugins.beholder import BeholderHook
 
 from riken.nn_utils.io_tools import train_input_fn, eval_input_fn
-from riken.rnn import rnn_model
+from rnn.tf import rnn_model
 
 """
 python trainer.py \

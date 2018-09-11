@@ -1,8 +1,11 @@
 #!/bin/bash
 #$ -S /bin/bash
-#$ -jc gpu-container_g1.default
+#$ -jc gpu-container_g1.72h
 #$ -ac d=nvcr-tensorflow-1807-py3
 
+# Above are the instructions given to the server (regarding hardware spec and container choice)
+# Below is the package installation steps.
+# Feel free to add installations steps if you need to
 . /fefs/opt/dgx/env_set/nvcr-tensorflow-1807-py3.sh
 
 export PYTHONPATH="/home/pierre/riken:$PYTHONPATH"
@@ -15,9 +18,8 @@ export http_proxy=$MY_PROXY_URL
 export https_proxy=$MY_PROXY_URL
 export ftp_proxy=$MY_PROXY_URL
 
-
-
 pip install --upgrade --user pip
+pip install joblib --user
 pip install biopython --user
 pip install pandas --user
 pip install numpy --user --upgrade
@@ -26,12 +28,10 @@ pip install scikit-learn --user
 pip install tqdm --user
 pip install keras --upgrade --user
 
+# Here write your script
 cd /home/pierre/riken/riken/rnn
-#python keras_hyperparameters_selection.py
-python rnn_keras_with_psiblast.py -data_path /home/pierre/riken/data/riken_data/complete_from_xlsx_v2COMPLETE.tsv \
--pssm_format_file /home/pierre/riken/data/psiblast/riken_data_v2/{}_pssm.txt \
+python rnn_keras_with_psiblast.py -data_path ~/riken/data/riken_data/complete_from_xlsx_v2COMPLETE.tsv \
+-pssm_format_file ~/riken/data/psiblast/riken_data_v2/{}_pssm.txt \
 -key_to_predict is_allergenic \
--log_dir logs_best_hyperp_v2 \
--groups predefined \
--index_col 0
-
+-index_col 0 \
+-groups predefined

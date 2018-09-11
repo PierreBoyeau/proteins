@@ -28,8 +28,10 @@ COMMAND = "psiblast -db {db} \
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_path', help='path to saved data')
-    parser.add_argument('--db', help='data used for pssm matrix construction',
-                        default='./psiblast/swissprot/swissprot')
+    parser.add_argument('--db', help="data used for pssm matrix construction to make alignments. "
+                                     "If you don't know what this is about, "
+                                     "don't touch this parameter",
+                        default='../../data/psiblast/swissprot/swissprot')
     parser.add_argument('--jobs', help='Number of jobs', default=16, type=int)
     parser.add_argument('--save_dir', help='path where pssm need to be saved')
     return parser.parse_args()
