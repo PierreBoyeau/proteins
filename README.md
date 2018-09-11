@@ -42,13 +42,35 @@ following properties:
 
 `spp_sequence_ver2` is a copy of the C++ code given to me by Takuto-san.
 
-## III. Install
+## IIIA. Install (RIKEN servers)
+1. Copy or clone this project via Github using:
+    ```bash
+    git clone https://github.com/PierreBoyeau/riken.git
+    ```
+2. Unzip the `riken_data` PSIBLAST PSSM files. Supposing you are in source folder in bash console:
+    ```bash
+    cd ./data/psiblast
+    zip -s 0 riken_data_v2.zip --out unsplit.zip
+    unzip unsplit.zip
+    ```
+
+
+**THIS IS ALL YOU NEED TO DO, AS PACKAGES INSTALL SHOULD BE DONE IN THE SCRIPT YOU SUBMIT**
+
+## IIIB. Install (not on RIKEN servers)
 Everything described here has been done with Ubuntu 16.06. 
 
 1. Copy or clone this project via Github using:
     ```bash
     git clone https://github.com/PierreBoyeau/riken.git
     ```
+2. Unzip the `riken_data` PSIBLAST PSSM files. Supposing you are in source folder in bash console:
+    ```bash
+    cd ./data/psiblast
+    zip -s 0 riken_data_v2.zip --out unsplit.zip
+    unzip unsplit.zip
+    ```
+
 
 2. Run `install.sh`. In this script we used extensively Anaconda (which you can install [here](https://www.anaconda.com/download)) but can easily be done manually using pip.
 Just ensure that you use Python 3! 
