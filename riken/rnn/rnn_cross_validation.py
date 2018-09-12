@@ -17,7 +17,6 @@ PARAMS = {
     'n_cells': np.arange(10, 40).tolist(),
     'n_filters': np.arange(20, 100).tolist(),
     'optim': [RMSprop(1e-2),  Adam(1e-2)],
-    # 'test_score': 0.9741247995,
     'trainable_embeddings': [False],
     'batch_size': np.arange(32, 130).tolist(),
     'maxlen': [1000],
@@ -51,7 +50,7 @@ def find_best_model(xtv, pssm_tv, ytv, groups_tv, grid):
         mdl.fit([x_t, pssm_t], y_t, batch_size=batch_size,
                 callbacks=[callback],
                 epochs=25, validation_data=[[x_v, pssm_v], y_v])
-        score = roc_auc_score(y_v, mdl.predict(x_v)[:, 1])
+        score = roc_auc_score(y_v[:, 1], mdl.predict([x_v, pssm_v])[:, 1])
 
         param['batch_size'] = batch_size
         param['nb_epochs'] = callback.stopped_epoch
@@ -67,12 +66,12 @@ if __name__ == '__main__':
     sequences, y = df['sequences'].values, df[KEY_TO_PREDICT]
     y = pd.get_dummies(y).values
     X = pad_sequences([[prot_features.safe_char_to_idx(char) for char in sequence]
-                       for sequence in sequences], maxlen=PARAMS['maxlen'])
+                       for sequence in sequences], maxlen=PARAMS['maxlen'][0])
     groups = df[GROUPS].values
     indices = df.index.values
 
     X, pssm, y = get_all_features(X, y, indices, pssm_format_fi=PSSM_FORMAT_FILE,
-                                  maxlen=PARAMS['maxlen'])
+                                  maxlen=PARAMS['maxlen'][0])
     splits = pseudo_cv_groups(X, y, groups)
 
     info = []
@@ -102,4 +101,4 @@ if __name__ == '__main__':
             perfs['roc_auc'] = None
         info.append(perfs)
         idx += 1
-    pd.DataFrame(info).to_csv('best_model_v2BIS_cross_validation.csv', sep='\t')
+    pd.DataFrame(info).to_csv('best_model_NEW_cross_validation.csv', sep='\t')

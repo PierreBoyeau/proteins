@@ -58,7 +58,7 @@ def find_best_model(xtv, pssm_tv, ytv, groups_tv, grid):
         mdl.fit([x_t, pssm_t], y_t, batch_size=batch_size,
                 callbacks=[callback],
                 epochs=25, validation_data=[[x_v, pssm_v], y_v])
-        score = roc_auc_score(y_v, mdl.predict(x_v)[:, 1])
+        score = roc_auc_score(y_v[:, 1], mdl.predict([x_v, pssm_v])[:, 1])
 
         param['batch_size'] = batch_size
         param['nb_epochs'] = callback.stopped_epoch
