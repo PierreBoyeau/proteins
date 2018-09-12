@@ -27,7 +27,6 @@ n_chars = len(chars)
 # STATIC_AA_TO_FEAT_M = prot_features.create_blosom_80_mat()
 # STATIC_AA_TO_FEAT_M = prot_features.create_overall_static_aa_mat(normalize=True)
 STATIC_AA_TO_FEAT_M = prot_features.create_overall_static_aa_mat(normalize=True)
-# TODO: Ensure that new features (chemical properties of AA bring something to the model) via CV?
 
 ONEHOT_M = np.zeros((n_chars + 1, n_chars + 1))
 ONEHOT_M[1:, 1:] = np.eye(n_chars, n_chars)
@@ -139,13 +138,14 @@ def rnn_model_attention_psiblast(n_classes, n_filters=50, kernel_size=3, activat
 
     attention = Dense(1)(h)
     attention = Lambda(lambda x: K.squeeze(x, axis=2))(attention)
+
     # Original attention mecanism
-    # attention = Activation(activation='softmax')(attention)
+    attention = Activation(activation='softmax')(attention)
 
     # New attention mecanism
-    attention = Lambda(lambda x: K.tanh(x))(attention)
-    attention = Lambda(lambda x: K.maximum(x, 0.0))(attention)
-    attention = Lambda(lambda x: x / (1e-3 + K.sum(x, axis=1, keepdims=True)))(attention)
+    # attention = Lambda(lambda x: K.tanh(x))(attention)
+    # attention = Lambda(lambda x: K.maximum(x, 0.0))(attention)
+    # attention = Lambda(lambda x: x / (1e-3 + K.sum(x, axis=1, keepdims=True)))(attention)
 
     attention = RepeatVector(int(2*n_cells))(attention)
     attention = Permute((2, 1))(attention)
