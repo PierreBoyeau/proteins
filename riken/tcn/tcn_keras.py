@@ -8,7 +8,7 @@ from keras.callbacks import TensorBoard, ModelCheckpoint
 from keras.layers import Activation, Add, BatchNormalization, Conv1D, Dense, Dropout, Input, Lambda, \
     RepeatVector, Permute, Multiply, Concatenate
 from keras.models import Model
-from keras.optimizers import Adam
+from keras.optimizers import Adam, RMSprop
 from keras.preprocessing.sequence import pad_sequences
 from sklearn.metrics import roc_auc_score
 
