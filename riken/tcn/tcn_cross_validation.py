@@ -25,7 +25,7 @@ PARAMS = {
     "dropout_rate": np.linspace(0.1, 0.4, num=10).tolist(),
     "kernel_initializer": ['glorot_uniform', 'glorot_normal', 'he_normal', 'he_uniform'],
     "kernel_size": [3, 5, 7, 9],
-    "maxlen": 1000,
+    "maxlen": [1000],
     "n_filters": np.arange(10, 50).tolist(),
     "optim": [RMSprop(1e-2),  Adam(1e-2)],
     "trainable_embeddings": True,
