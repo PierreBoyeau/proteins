@@ -1,28 +1,36 @@
-from riken.rnn.rnn_keras_with_psiblast import *
+from riken.tcn.tcn_keras import *
 from riken.protein_io.data_op import pseudo_cv_groups
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import ParameterSampler
 from keras.callbacks import EarlyStopping
 
-from sklearn.metrics import roc_auc_score, make_scorer
-from sklearn.model_selection import ParameterSampler
-import numpy as np
+# PARAMS = {
+#     "activation": ["selu", "relu", "tanh"],
+#     "batch_size": 103,
+#     "depth": 8,
+#     "dropout_rate": 0.2,
+#     "kernel_initializer": "glorot_uniform",
+#     "kernel_size": 7,
+#     "maxlen": 500,
+#     "n_filters": 21,
+#     "nb_epochs": 21,
+#     "optim": Adam(1e-2),
+#     "trainable_embeddings": True,
+# }
 
-
-## BEST MODEL 2
 PARAMS = {
-    'activation': ['tanh', 'relu', 'selu'],
-    'conv_kernel_initializer': ['glorot_uniform', 'glorot_normal', 'he_normal', 'he_uniform'],
-    'dropout_rate': np.linspace(0.1, 0.4, num=10),
-    'kernel_size': [5, 3],
-    'lstm_kernel_initializer': ['glorot_uniform', 'glorot_normal', 'he_normal', 'he_uniform'],
-    'n_cells': np.arange(10, 40).tolist(),
-    'n_filters': np.arange(20, 100).tolist(),
-    'optim': [RMSprop(1e-2),  Adam(1e-2)],
-    'trainable_embeddings': [False],
-    'batch_size': np.arange(32, 130).tolist(),
-    'maxlen': [1000],
+    "activation": ["selu", "relu", "tanh"],
+    "batch_size": np.arange(50, 150).tolist(),
+    "depth": [7, 8, 9],
+    "dropout_rate": np.linspace(0.1, 0.4, num=10).tolist(),
+    "kernel_initializer": ['glorot_uniform', 'glorot_normal', 'he_normal', 'he_uniform'],
+    "kernel_size": [3, 5, 7, 9],
+    "maxlen": [1000],
+    "n_filters": np.arange(10, 50).tolist(),
+    "optim": [RMSprop(1e-2),  Adam(1e-2)],
+    "trainable_embeddings": [True, False],
 }
 
-LR = 1e-3
 DATA_PATH = '/home/pierre/riken/data/riken_data/complete_from_xlsx_v2COMPLETE.tsv'
 KEY_TO_PREDICT = 'is_allergenic'
 GROUPS = 'genre'
@@ -46,7 +54,7 @@ def find_best_model(xtv, pssm_tv, ytv, groups_tv, grid):
         batch_size = param.pop('batch_size')
 
         callback = EarlyStopping(patience=5)
-        mdl = rnn_model_attention_psiblast(n_classes=y.shape[1], **param)
+        mdl = tcn_model(n_classes=y.shape[1], **param)
         mdl.fit([x_t, pssm_t], y_t, batch_size=batch_size,
                 callbacks=[callback],
                 epochs=25, validation_data=[[x_v, pssm_v], y_v])
@@ -86,7 +94,7 @@ if __name__ == '__main__':
         nb_epochs = best_params.pop('nb_epochs')
         batch_size = best_params.pop('batch_size')
 
-        model = rnn_model_attention_psiblast(n_classes=y.shape[1], **best_params)
+        model = tcn_model(n_classes=y.shape[1], **best_params)
         history = model.fit([Xtrain, pssm_train], ytrain,
                             batch_size=batch_size,
                             epochs=nb_epochs,
