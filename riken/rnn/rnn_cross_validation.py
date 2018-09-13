@@ -54,7 +54,7 @@ def find_best_model(xtv, pssm_tv, ytv, groups_tv, grid):
 
         param['batch_size'] = batch_size
         param['nb_epochs'] = callback.stopped_epoch
-        results.append({"score": score, "params": param}, ignore_index=True)
+        results = results.append({"score": score, "params": param}, ignore_index=True)
     best_params = results.sort_values(by='score', ascending=False).iloc[0]["params"]
     return best_params
 
