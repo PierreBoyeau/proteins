@@ -158,8 +158,28 @@ Please note you can find doc about how riken servers work in `riken/doc`
 
 ### C. Compute PSSM matrices
 As you understood, using RNN/TCN models assume you have at disposal PSIBLAST PSSMs matrice representation of your protein data.
-If you work with new data, or if you want to redo the computation, you will have to have a look at 
-`riken/protein_io/compute_pssm.py` using the following command:
+
+The first step is to download the Dataset file that will be used by PSIBLAST to compute alignments.
+Don't worry, you only need to do that once.
+
+1. Download SwissProt dataset (in PSIBLAST accepted format). Go there ftp://ftp.ncbi.nlm.nih.gov/blast/db/
+and download `swissprot.tar.gz`
+
+2. Extract downloaded archive in a folder contained in `data/psiblast/swissprot`. `ls data/psiblast/swissprot` should output something like:
+```bash
+swissprot.00.phr
+swissprot.00.pin
+swissprot.00.pnd
+swissprot.00.pni
+swissprot.00.pog
+swissprot.00.ppd
+...
+```
+
+Now **you can compute PSSM files!**
+
+If you work with new data, or if you want to redo the computation of PSSM files, go to 
+`riken/protein_io`  and use the following command:
 
 ```bash
 python compute_pssm.py -data_path PATH_TO_PROTEINS.csv \
@@ -168,12 +188,33 @@ python compute_pssm.py -data_path PATH_TO_PROTEINS.csv \
 
 As usual, run `python compute_pssm.py --help` for more guidelines.
 
+
+**NB**: you can use other datasets that `swissprot` to make alignments. Have a look at available datasets located in 
+ftp://ftp.ncbi.nlm.nih.gov/blast/db and download the archive of your choice and extract it in the same way 
+as explained for `swissprot`.
+Simply add argument `--db PATH_TO_DB` to `compute_pssm.py` and you are good to go.
+
 ### D. Older works
 First experiments (Word2Vec/Allerdictor based) all are contained in `riken/word2vec`.
-The most important file is `mdl_cross_validation.py`. This file allows you to get the **allerdictor** (`mode==svm`)
-and **Word2Vec**(`mode=word2vec`) cross-validated performance
+The most important file is `mdl_cross_validation.py`. 
+
+This file allows you to get the **allerdictor** and **Word2Vec** cross-validated performance
+To get allerdictor cross_validated results, change **MODE** value to be `'svm'` or **MODE** value to be 
+`word2vec` in `mdl_cross_validation.py` code.
+
+
 
 ## V. Remarks and warnings
 
 - To import data, this project assumed that this project folder was located in `/home/pierre`. If at some point
 you have some `FileNotFoundError`, make sure that said path exist on your machine, and if not just modify the code.
+
+
+## VI. Data source
+
+If you need to download bigger datasets that were considered for transfer learning, please find paths here:
+
+- SwissProt (aka UniProt): https://www.uniprot.org/uniprot/?query=reviewed:yes#
+
+- PFAM: Huge dataset of proteins containing clan (aka superfamily tags) information. It can be found here
+ftp://ftp.ebi.ac.uk/pub/databases/Pfam/releases/Pfam31.0/ (or ftp://ftp.ebi.ac.uk/pub/databases/Pfam/releases, take the last version)
