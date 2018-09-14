@@ -50,9 +50,8 @@ def find_best_model(xtv, pssm_tv, ytv, groups_tv, grid):
     y_v = ytv[v_inds]
 
     results = pd.DataFrame()
-    for param in ParameterSampler(grid, n_iter=100):
+    for param in ParameterSampler(grid, n_iter=50):
         batch_size = param.pop('batch_size')
-
         callback = EarlyStopping(patience=5)
         mdl = tcn_model(n_classes=y.shape[1], **param)
         mdl.fit([x_t, pssm_t], y_t, batch_size=batch_size,
@@ -109,4 +108,5 @@ if __name__ == '__main__':
             perfs['roc_auc'] = None
         info.append(perfs)
         idx += 1
+        pd.DataFrame(info).to_csv('best_model_NEW_cross_validation.csv', sep='\t')
     pd.DataFrame(info).to_csv('best_model_NEW_cross_validation.csv', sep='\t')
