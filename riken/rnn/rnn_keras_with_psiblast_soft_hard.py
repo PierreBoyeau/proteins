@@ -20,21 +20,34 @@ from riken.protein_io.reader import get_pssm_mat
 from riken.protein_io import data_op, prot_features
 
 
-chars = prot_features.chars  # list of known amino-acids
-chars_to_idx = prot_features.chars_to_idx  # dict that convert aminoacid to indice
-n_chars = len(chars)  # total number of amino-acids
+chars = prot_features.chars
+chars_to_idx = prot_features.chars_to_idx
+n_chars = len(chars)
 
-# below matrice is a matrix of shape [n_chars+1, nb_features] that maps amino acids
-# to their STATIC features (like chemico-physical properties
+# STATIC_AA_TO_FEAT_M = prot_features.create_blosom_80_mat()
 # STATIC_AA_TO_FEAT_M = prot_features.create_overall_static_aa_mat(normalize=True)
-STATIC_AA_TO_FEAT_M = prot_features.create_overall_static_aa_mat_feature_selection(normalize=True)
-
+STATIC_AA_TO_FEAT_M = prot_features.create_overall_static_aa_mat(normalize=True)
 
 ONEHOT_M = np.zeros((n_chars + 1, n_chars + 1))
 ONEHOT_M[1:, 1:] = np.eye(n_chars, n_chars)
 MAXLEN = 500
 LR = 1e-3
 
+# PARAMS = dict()
+# PARAMS = {
+#     'activation': 'tanh',
+#     'conv_kernel_initializer': 'glorot_uniform',
+#     'dropout_rate': 0.3222222222,
+#     'kernel_size': 6,
+#     'lstm_kernel_initializer': 'glorot_normal',
+#     'n_cells': 25,
+#     'n_filters': 79,
+#     'nb_epochs': 13,
+#     'optim': RMSprop(),
+#     # 'test_score': 0.9741247995,
+#     'trainable_embeddings': False,
+#     'batch_size': 85
+# }
 
 ## BEST MODEL 2
 PARAMS = {
@@ -56,18 +69,6 @@ PARAMS = {
 
 def get_all_features(seq, y, indices, pssm_format_fi='../data/psiblast/swiss/{}_pssm.txt',
                      maxlen=MAXLEN):
-    """
-    This function objectives is to extract all features and particularly PSSM matrices (cf MEMO)
-    Basically, for each protein, it will open associated pssm file.
-    pssm_file is supposed to have path pssm_format_fi.format(indice_protein)
-
-    :param seq: Matrice of protein sequences (list of strings)
-    :param y: class
-    :param indices: Protein indices
-    :param pssm_format_fi: path to pssm files where {} will be replaced by protein indices
-    :param maxlen: maximum length
-    :return: sequences_filtered, pssm_filtered, y_filtered
-    """
     sequences_filtered = []
     y_filtered = []
     pssm_filtered = []
@@ -109,24 +110,6 @@ def rnn_model_attention_psiblast(n_classes, n_filters=50, kernel_size=3, activat
                                  dropout_rate=0.5, conv_kernel_initializer='glorot_uniform',
                                  lstm_kernel_initializer='glorot_uniform', optim=Adam(lr=1e-3),
                                  maxlen=MAXLEN):
-    """
-    Most important function of this script.
-    It constructs the Keras Model based on all parameters
-
-    :param n_classes: Number of classes in total in classification
-    :param n_filters: Number of filters in convolutional layer
-    :param kernel_size: Size of 1D conv kernels
-    :param activation: convolution activation
-    :param rnn_model: rnn model
-    :param n_cells: Number of RNN cells
-    :param trainable_embeddings: Should embeddings be trainable
-    :param dropout_rate: dropout rate
-    :param conv_kernel_initializer: kernel initializer for conv
-    :param lstm_kernel_initializer: kernel initializer for rnn
-    :param optim: keras optimizer
-    :param maxlen: sequences length
-    :return: Keras Model
-    """
     aa_ind = Input(shape=(maxlen,), name='aa_indice')
     h = get_embeddings(aa_ind, trainable_embeddings=trainable_embeddings)
 
@@ -153,39 +136,29 @@ def rnn_model_attention_psiblast(n_classes, n_filters=50, kernel_size=3, activat
         rnn_model(n_cells, return_sequences=True, kernel_initializer=lstm_kernel_initializer)
     )(h)
 
-    attention = Dense(1)(h) # shape [MAX_LEN, 1]
-    # Activation(activation='softmax') needs the output to be of shape [MAX_LEN]
-    # We need to change the output shape
-    attention = Lambda(lambda x: K.squeeze(x, axis=2))(attention)  # shape: [MAX_LEN]
+    attention = Dense(1)(h)
+    attention = Lambda(lambda x: K.squeeze(x, axis=2))(attention)
 
     # Original attention mecanism
-    attention = Activation(activation='softmax')(attention) # Here we have the attention weights
-    # With shape [MAX_LEN]
+    # attention = Activation(activation='softmax')(attention)
 
     # New attention mecanism
+    attention = Lambda(lambda x: K.sigmoid(x) - 0.5, name='activation_weights')(attention)
+    attention = Lambda(lambda x: K.maximum(x, 0.0))(attention)
+    attention = Lambda(lambda x: x / (1e-3 + K.sum(x, axis=1, keepdims=True)))(attention)
+
+
     # attention = Lambda(lambda x: K.tanh(x))(attention)
     # attention = Lambda(lambda x: K.maximum(x, 0.0))(attention)
     # attention = Lambda(lambda x: x / (1e-3 + K.sum(x, axis=1, keepdims=True)))(attention)
 
-
-    # To multiply h and attention, they need to have the same shape
-    # So we need to change the shape of attention (which is [MAX_LEN] to the shape of h
-    # which is [MAX_LEN, 2*Ncells]
-
-    attention = RepeatVector(int(2*n_cells))(attention)  # This function repeats the value of attention
-    # But the shape is now [2_*n_cells, MAX_LEN]
-
-    attention = Permute((2, 1))(attention) # We just switch the dimensions and now the shape of attention
-    # is [MAX_LEN, 2*n_cells]
+    attention = RepeatVector(int(2*n_cells))(attention)
+    attention = Permute((2, 1))(attention)
 
     last = Multiply()([attention, h])
     last = Lambda(lambda x: K.sum(x, axis=1), output_shape=(int(2*n_cells),))(last)
 
-    h = Dense(n_classes, activation='softmax')(last)  # Last output of shape [2] because we have 2 classes
-    # Using softmax, allow both values to be understood as respectively
-    # 1. the probability of the protein of being a non allergen
-    # 2. the probability of the protein of being an allergen
-
+    h = Dense(n_classes, activation='softmax')(last)
     mdl = Model(inputs=[aa_ind, psiblast_prop], outputs=h)
     optimizer = optim
     mdl.compile(loss='categorical_crossentropy',
@@ -197,18 +170,6 @@ def rnn_model_attention_psiblast(n_classes, n_filters=50, kernel_size=3, activat
 def transfer_model(n_classes_new, mdl_path, prev_model_output_layer='lambda_2', freeze=False,
                    lr=1e-3, optim=Adam,
                    kernel_initializer='glorot_uniform', dropout_rate=0.0):
-    """
-    Function that creates model if you use transfer learning
-    :param n_classes_new: Number of class in NEW classification task
-    :param mdl_path: path to already trained model (model we will transfer from
-    :param prev_model_output_layer: Name of the last layer we will use in already trained model
-    :param freeze: Should transfered layers be frozen?
-    :param lr: Learning rate
-    :param optim: Optimizer Keras class
-    :param kernel_initializer:
-    :param dropout_rate:
-    :return: Keras Model
-    """
     prev_mdl = load_model(mdl_path)
     prev_mdl.layers.pop()
     if freeze:
